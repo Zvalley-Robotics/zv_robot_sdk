@@ -14,7 +14,7 @@ Zvalley Robot SDK是中科云谷为新一代机器人推出的开发套件，对
 
 https://github.com/Zvalley-Robotics/zv_robot_sdk.git
 
-参考仓库中的 README 文档，在开发者计算机上完成 SDK 的安装
+参考仓库中的 README 文档，在开发者计算机上完成 SDK 的安装。
 
 ## 快速开发
 
@@ -590,7 +590,7 @@ int main()
 | **key_** | std::string | 参数键 |
 | **val_** | std::string | 参数值 |
 
-**远程控制机器人运动（RemoteControlChange_）**
+**远程控制机器人运动（RemoteControlMotion_）**
 
 | 字段名            | 类型  | 描述             |
 | ----------------- | ----- | ---------------- |
