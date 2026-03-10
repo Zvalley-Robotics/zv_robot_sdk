@@ -14,7 +14,7 @@ Zvalley Robot SDK是中科云谷为新一代机器人推出的开发套件，对
 
 ### SDK 下载地址
 
- https://github.com/Zvalley-Robotics/zv_robot_sdk.git
+https://github.com/Zvalley-Robotics/zv_robot_sdk.git
 
 参考仓库中的 README 文档，在开发者计算机上完成 SDK 的安装
 
@@ -29,13 +29,13 @@ Zvalley Robot SDK是中科云谷为新一代机器人推出的开发套件，对
 | CPU 核心数 | 4 核            |
 | RAM        | 16 GB           |
 
-### SDK安装
+### SDK使用
 
-要使用该 SDK 构建自己的应用程序，您可以将Zvalley Robot SDK安装到系统目录
+要使用该 SDK 构建自己的应用程序，您可以进入example目录，编写example程序并编译，运行编译后的可执行文件来验证功能。
 
 ```
-mkdir build
-cd build
+cd examples
+mkdir build && cd build
 cmake ..
 sudo make install
 ```
@@ -265,15 +265,6 @@ int main()
 }
 ```
 
-#### 部分通用错误码列表
-
-| 错误号 | 错误描述 | 备注 |
-| :----: | -------- | ---- |
-|        |          |      |
-|        |          |      |
-|        |          |      |
-|        |          |      |
-
 ---
 
 <div style="page-break-after: always;"></div>
@@ -282,7 +273,7 @@ int main()
 
 #### 整体设计
 
-![image-20260309164640659](C:\Users\hyx\AppData\Roaming\Typora\typora-user-images\image-20260309164640659.png)
+![image-20260309164640659](/images/yk.png)
 
 #### 控制接⼝说明
 
@@ -326,9 +317,8 @@ bool is_continous
 **命令⾏使⽤示例**
 
 ```c++
-# 向正前⽅以 1m/s 运动 1s
-ros2 topic pub /change_cmd robot_msgs/msg/RemoteControlMotion "{vx: 1, vy: 
-0, vyaw: 0, gait_step: 1, is_continous: false}" -1
+# 向正前⽅以 1m/s 运动 1s 
+ros2 topic pub /change_cmd robot_msgs/msg/RemoteControlMotion "{vx: 1, vy:  0, vyaw: 0, gait_step: 1, is_continous: false}" -1
 ```
 
 **2. /change_cmd 切换接⼝**
@@ -391,36 +381,28 @@ ModelType
 
 可⽤模型：
 
-| 模型      | 说明       |
-| --------- | ---------- |
-| stil      | 静止       |
-| stand     | 站立       |
-| run       | 跑步       |
-| hand2     | 招手       |
-| mimic     | 模仿动作   |
-| hiphop    | 嘻哈舞     |
-| mojito    | Mojito舞   |
-| warmup    | 热身动作   |
-| newdance  | 新舞蹈     |
-| kick      | 踢腿       |
-| beyond    | beyond舞   |
-| year      | 拜年       |
-| shrug     | 耸闱贽栆肩 |
-| bow       | 鞠环躬     |
-| salute    | 敬礼       |
-| gentleman | 绅士动作   |
-| introduce | 自我介绍   |
-| dualhello | 双人问候   |
-| show      | 展示动作   |
-| flat      | 平衡动作   |
-
-**命令⾏使⽤示例**
-
-```c++
-# 招⼿⼀次
-ros2 topic pub /change_cmd robot_msgs/msg/RemoteControlChange "{key: 'mode
-l', val: 'hand2'}" -1
-```
+| 模型      | 说明     |
+| --------- | -------- |
+| stil      | 静止     |
+| stand     | 站立     |
+| run       | 跑步     |
+| hand2     | 招手     |
+| mimic     | 模仿动作 |
+| hiphop    | 嘻哈舞   |
+| mojito    | Mojito舞 |
+| warmup    | 热身动作 |
+| newdance  | 新舞蹈   |
+| kick      | 踢腿     |
+| beyond    | beyond舞 |
+| year      | 拜年     |
+| shrug     | 耸肩     |
+| bow       | 鞠躬     |
+| salute    | 敬礼     |
+| gentleman | 绅士动作 |
+| introduce | 自我介绍 |
+| dualhello | 双人问候 |
+| show      | 展示动作 |
+| flat      | 平衡动作 |
 
 ## 底层服务接口
 
@@ -497,7 +479,7 @@ int main()
 
 底层 DDS状态反馈示例路径：examples/lowcmd/subscriber.cpp
 
-​    该示例演示了如何使用SDK订阅机器人关节状态反馈（JointStateFeedback）DDS 数据，话题为 rt/all_joint_state，并通过回调函数中读取关节名称和位置。
+​    该示例演示了如何使用SDK订阅机器人关节状态（AllJointState）DDS 数据，话题为 rt/all_joint_state，并通过回调函数中读取关节名称和位置。
 
 ```cpp
 #include <chrono>
@@ -549,65 +531,8 @@ int main()
     // 5. 保持进程运行，Subscriber 在内部线程接收消息并调用 Handler
     while (true)
     {
-        std::this_thread::sleep_for(std::chrono::seconds(10));
+ std::this_thread::sleep_for(std::chrono::seconds(10));
     }
-    return 0;
-}
-```
-
-
-
-```cpp
-#include <chrono>
-#include <thread>
-#include <zv/robot/channel/channel_subscriber.hpp>
-#include "JointStateFeedback_.hpp"
-#include <iostream>
-
-// 订阅的话题名（机器人底盘 / 全关节状态）
-static const std::string LOW_STATE_TOPIC = "rt/robot_driver/all_joint_state";
-
-using namespace zv::robot;
-using namespace zv::common;
-
-// 1. 消息回调函数，当有 JointStateFeedback_ 消息到达指定话题时，SDK 自动调用该函数
-void Handler(const void* msg)
-{
-    // 将通用指针转换为具体的 JointStateFeedback_ 消息类型
-    const motor_msgs::msg::dds_::JointStateFeedback_* joint_state_msg =
-        (const motor_msgs::msg::dds_::JointStateFeedback_*)msg;
-
-    // 获取关节名称列表和对应位置
-    std::vector<::std_msgs::msg::dds_::String_> names = joint_state_msg->joint_names_();
-    std::vector<double> pos = joint_state_msg->positions_();
-
-    // 打印第一个关节的名称
-    std::cout << "[Subscriber] Message received joint_names: " << names[0].data_() << std::endl;
-
-    // 打印所有关节位置
-    for (int i = 0; i < pos.size(); i++)
-    {
-        std::cout << "positions : " << pos[i] << std::endl;
-    }
-}
-
-int main()
-{
-    // 2. 初始化 Channel 工厂，管理底层通信资源
-    ChannelFactory::Instance()->Init(0);
-    
-    // 3. 创建 Subscriber 对象，绑定话题和消息类型
-    ChannelSubscriber<motor_msgs::msg::dds_::JointStateFeedback_> subscriber(LOW_STATE_TOPIC);
-
-    // 4. 初始化通信通道并注册回调函数
-    subscriber.InitChannel(Handler);
-
-    // 5. 保持进程运行，Subscriber 在内部线程接收消息并调用 Handler
-    while (true)
-    {
-        std::this_thread::sleep_for(std::chrono::seconds(10));
-    }
-
     return 0;
 }
 ```
@@ -623,42 +548,56 @@ int main()
 | **joint_torque_** | double | 关节目标力矩     |
 | **kp_**           | double | 位置控制比例系数 |
 | **kd_**           | double | 速度控制比例系数 |
-| **acc_**          | double | 加速度指令       |
-| **vel_max_**      | double | 速度上限         |
-| **acc_max_**      | double | 加速度上限       |
 
-**肢体动作命令（LimbControlCmd_）**
+**单个关节状态（JointState_）**
 
-| 字段名           | 类型                | 描述                                                     |
-| ---------------- | ------------------- | -------------------------------------------------------- |
-| **header_**      | ZVHeader_           | 消息头，包含时间戳、trace_id等信息                       |
-| **index_**       | int64_t             | 命令序号                                                 |
-| **limb_part_**   | uint8_t             | 控制的肢体部分（如左臂/右臂/腿等）                       |
-| **motion_mode_** | uint8_t             | 动作模式（如位置/速度/力控制）                           |
-| **robot_state_** | int16_t             | 机器人状态或状态码（可表示动作是否允许、错误等）         |
-| **joint_cmds**   | sequence<JointCmd_> | 关节动作指令集合，每个关节包含位置、速度、力矩及控制参数 |
+| 字段名            | 类型    | 描述         |
+| ----------------- | ------- | ------------ |
+| **joint_pos_**    | double  | 关节目标位置 |
+| **joint_vel_**    | double  | 关节目标速度 |
+| **joint_torque_** | double  | 关节目标力矩 |
+| **temp_motor_**   | int32_t | 电机温度     |
+| **temp_mos_**     | int32_t | MOS温度      |
+| **error_**        | int32_t | 错误码       |
 
-**关节状态反馈（JointStateFeedback_）**
+**所有关节集中控制命令（AllJointCmd_）**
 
-| 字段名            | 类型               | 描述           |
-| ----------------- | ------------------ | -------------- |
-| **header_**       | ZVHeader_          | 消息头         |
-| **joint_names_**  | sequence<string>   | 关节名称列表   |
-| **positions_**    | sequence<double>   | 各关节实际位置 |
-| **velocities_**   | sequence<double>   | 各关节实际速度 |
-| **efforts_**      | sequence<double>   | 各关节实际力矩 |
-| **status_flags_** | sequence<uint16_t> | 各关节状态标志 |
+| 字段名          | 类型                   | 描述                                     |
+| --------------- | ---------------------- | ---------------------------------------- |
+| **timestamp_**  | int64_t                | 时间戳，标记命令生成的时间               |
+| **index_**      | int64_t                | 索引，标识命令序列                       |
+| **cmd_type_**   | uint8_t                | 指定控制模式                             |
+| **joint_cmds_** | std::vector<JointCmd_> | 关节命令数组，包含每个关节的具体控制参数 |
 
-**消息公共头（ZVHeader_）**
+**所有关节状态（AllJointState_）**
 
-| 字段名        | 类型                               | 描述                           |
-| ------------- | ---------------------------------- | ------------------------------ |
-| **time_**     | builtin_interfaces::msg::dds::Time | 时间戳，包含秒和纳秒           |
-| **trace_id_** | string                             | 消息追踪 ID，用于唯一标识消息  |
-| **reserve_**  | string                             | 预留字段，可用于扩展或其他信息 |
+| 字段名            | 类型                       | 描述                                 |
+| ----------------- | -------------------------- | ------------------------------------ |
+| **timestamp_**    | int64_t                    | 时间戳，标记状态数据生成的时间       |
+| **index_**        | int64_t                    | 索引，标识状态序列                   |
+| **joint_states_** | std::vector<joint_states_> | 关节状态数组，包含每个关节的详细信息 |
 
-```c++
-# 招⼿⼀次
-ros2 topic pub /change_cmd robot_msgs/msg/RemoteControlChange "{key: 'mode
-l', val: 'hand2'}" -1
-```
+**所有关节状态（AllJointState_）**
+
+| 字段名            | 类型                       | 描述                                 |
+| ----------------- | -------------------------- | ------------------------------------ |
+| **timestamp_**    | int64_t                    | 时间戳，标记状态数据生成的时间       |
+| **index_**        | int64_t                    | 索引，标识状态序列                   |
+| **joint_states_** | std::vector<joint_states_> | 关节状态数组，包含每个关节的详细信息 |
+
+**远程控制参数配置（RemoteControlChange_）**
+
+| 字段名   | 类型        | 描述   |
+| -------- | ----------- | ------ |
+| **key_** | std::string | 参数键 |
+| **val_** | std::string | 参数值 |
+
+**远程控制机器人运动（RemoteControlChange_）**
+
+| 字段名            | 类型  | 描述             |
+| ----------------- | ----- | ---------------- |
+| **vx_**           | float | X轴方向线速度    |
+| **vy_**           | float | Y轴方向线速度    |
+| **vyaw_**         | float | 偏航角速度       |
+| **gait_step_**    | float | 步态步长         |
+| **is_continous_** | bool  | 是否连续运动标志 |
