@@ -8,7 +8,7 @@ from __future__ import annotations
 import collections.abc
 import typing
 import typing_extensions
-__all__: list[str] = ['AllJointCmd_', 'AllJointState_', 'ChannelFactory', 'ChannelPublisher_AllJointCmd_', 'ChannelPublisher_String_', 'ChannelSubscriber_AllJointState_', 'ChannelSubscriber_String_', 'JointCmd_', 'JointState_', 'RemoteControlChange_', 'RemoteControlMotion_', 'String_', 'Time_']
+__all__: list[str] = ['AllJointCmd_', 'AllJointState_', 'ChannelFactory', 'ChannelPublisher_AllJointCmd_', 'ChannelPublisher_String_', 'ChannelSubscriber_AllJointState_', 'ChannelSubscriber_String_', 'CompressedImage_', 'Header_', 'Image_', 'JointCmd_', 'JointState_', 'RemoteControlChange_', 'RemoteControlMotion_', 'String_', 'Time_']
 class AllJointCmd_:
     __hash__: typing.ClassVar[None] = None
     def __eq__(self, arg0: AllJointCmd_) -> bool:
@@ -147,6 +147,84 @@ class ChannelSubscriber_String_:
         ...
     @typing.overload
     def __init__(self, channel_name: str, handler: collections.abc.Callable[[typing_extensions.CapsuleType], None], queue_len: typing.SupportsInt = 0) -> None:
+        ...
+class CompressedImage_:
+    __hash__: typing.ClassVar[None] = None
+    format_: str
+    header_: Header_
+    def __eq__(self, arg0: CompressedImage_) -> bool:
+        ...
+    @typing.overload
+    def __init__(self) -> None:
+        ...
+    @typing.overload
+    def __init__(self, header_: Header_, format_: str, data_: collections.abc.Sequence[typing.SupportsInt]) -> None:
+        ...
+    def __ne__(self, arg0: CompressedImage_) -> bool:
+        ...
+    @property
+    def data_(self) -> list[int]:
+        ...
+    @data_.setter
+    def data_(self, arg1: collections.abc.Sequence[typing.SupportsInt]) -> None:
+        ...
+class Header_:
+    __hash__: typing.ClassVar[None] = None
+    frame_id_: str
+    stamp_: Time_
+    def __eq__(self, arg0: Header_) -> bool:
+        ...
+    @typing.overload
+    def __init__(self) -> None:
+        ...
+    @typing.overload
+    def __init__(self, stamp_: Time_, frame_id_: str) -> None:
+        ...
+    def __ne__(self, arg0: Header_) -> bool:
+        ...
+class Image_:
+    __hash__: typing.ClassVar[None] = None
+    encoding_: str
+    header_: Header_
+    def __eq__(self, arg0: Image_) -> bool:
+        ...
+    @typing.overload
+    def __init__(self) -> None:
+        ...
+    @typing.overload
+    def __init__(self, header_: Header_, height_: typing.SupportsInt, width_: typing.SupportsInt, encoding_: str, is_bigendian_: typing.SupportsInt, step_: typing.SupportsInt, data_: collections.abc.Sequence[typing.SupportsInt]) -> None:
+        ...
+    def __ne__(self, arg0: Image_) -> bool:
+        ...
+    @property
+    def data_(self) -> list[int]:
+        ...
+    @data_.setter
+    def data_(self, arg1: collections.abc.Sequence[typing.SupportsInt]) -> None:
+        ...
+    @property
+    def height_(self) -> int:
+        ...
+    @height_.setter
+    def height_(self, arg1: typing.SupportsInt) -> None:
+        ...
+    @property
+    def is_bigendian_(self) -> int:
+        ...
+    @is_bigendian_.setter
+    def is_bigendian_(self, arg1: typing.SupportsInt) -> None:
+        ...
+    @property
+    def step_(self) -> int:
+        ...
+    @step_.setter
+    def step_(self, arg1: typing.SupportsInt) -> None:
+        ...
+    @property
+    def width_(self) -> int:
+        ...
+    @width_.setter
+    def width_(self, arg1: typing.SupportsInt) -> None:
         ...
 class JointCmd_:
     __hash__: typing.ClassVar[None] = None
