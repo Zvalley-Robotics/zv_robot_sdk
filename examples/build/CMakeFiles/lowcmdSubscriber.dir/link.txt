@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/lowcmdSubscriber.dir/lowcmd/subscriber.cpp.o -o lowcmdSubscriber  -Wl,-rpath,/workspace/sdk/zv_robot_sdk_o/examples/../thirdparty/cyclonedds/lib ../../libs/linux-x86_64-py312/static/libzv_robot_sdk.a ../../thirdparty/cyclonedds/lib/libddscxx.so ../../thirdparty/cyclonedds/lib/libddsc.so 

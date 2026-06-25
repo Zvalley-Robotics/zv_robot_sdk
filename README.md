@@ -35,8 +35,10 @@ https://github.com/Zvalley-Robotics/zv_robot_sdk.git
 cd examples
 mkdir build && cd build
 cmake ..
-sudo make install
+make
 ```
+
+编译完成后，可执行文件会生成在 `build` 目录下，直接运行即可验证功能。
 
 # 服务介绍
 
@@ -287,6 +289,7 @@ int main()
 **Message 类型**
 
 ```RemoteControlMotion.msg
+string token
 float32 vx
 float32 vy
 float32 vyaw
@@ -298,6 +301,7 @@ bool is_continous
 
 | 参数         | 类型    | 说明                          |
 | ------------ | ------- | ----------------------------- |
+| token        | string  | 令牌/鉴权标识                 |
 | vx           | float32 | 前后方向线速度(m/s)，正值前进 |
 | vy           | float32 | 左右方向线速度(m/s)，正值左移 |
 | vyaw         | float32 | 角速度(rad/s)，正值左转       |
@@ -440,7 +444,7 @@ int main()
     ChannelFactory::Instance()->Init(0);
     
     // 2. 创建 Publisher，绑定 Topic 和消息类型
-    ChannelPublisher<robot_msgs::msg::dds::AllJointCmd_> publisher(LOW_CMD_TOPIC);
+    ChannelPublisher<robot_msgs::msg::dds_::AllJointCmd_> publisher(LOW_CMD_TOPIC);
     
 	// 3. 初始化通信通道
     publisher.InitChannel();
@@ -448,7 +452,7 @@ int main()
     while (true)
     {
         // 4. 构造 AllJointCmd_ 消息
-        robot_msgs::msg::dds::AllJointCmd_ msg;
+        robot_msgs::msg::dds_::AllJointCmd_ msg;
         // 5. 设定每个关节的控制参数
         const std::vector<double> joint_pos {
             -0.07279034703969955, -0.016103055328130722, -0.03257334977388382, 0.17935675382614136,
@@ -520,22 +524,28 @@ using namespace zv::common;
 void Handler(const void* msg)
 {
     // 将通用指针转换为具体的 AllJointState_ 消息类型
-    const robot_msgs::msg::dds::AllJointState_* joint_state_msg = (const robot_msgs::msg::dds::AllJointState_*)msg;
+    const robot_msgs::msg::dds_::AllJointState_* joint_state_msg = (const robot_msgs::msg::dds_::AllJointState_*)msg;
     
-    // 获取消息的时间戳和序号
-    int64_t timestamp = joint_state_msg->timestamp();
-    int64_t index = joint_state_msg->index();
+    // 获取消息的时间戳、序号及是否用于控制标志
+    int64_t timestamp = joint_state_msg->timestamp_();
+    int64_t index = joint_state_msg->index_();
+    uint8_t used_for_ctrl = joint_state_msg->used_for_ctrl_();
     
     // 获取关节的状态信息
-    std::vector<robot_msgs::msg::dds::JointState_> joint_states = joint_state_msg->joint_states();
+    std::vector<robot_msgs::msg::dds_::JointState_> joint_states = joint_state_msg->joint_states_();
     
-	// 打印每条消息对应的序号和时间戳
-    std::cout << "[Subscriber] Message received msg: " << index << ", timestamp: " << timestamp << std::endl;
+	// 打印每条消息对应的序号、时间戳和控制标志
+    std::cout << "[Subscriber] Message received msg: " << index << ", timestamp: " << timestamp
+              << ", used_for_ctrl: " << static_cast<int>(used_for_ctrl) << std::endl;
     
-    // 打印所有关节位置
+    // 打印所有关节位置及标识（uint8_t 需转 int 打印，避免被当作字符）
     for (int i = 0; i < joint_states.size(); i++)
     {
-        std::cout << "  joint " << i << " positions : " << joint_states[i].joint_pos() << std::endl;
+        const auto& js = joint_states[i];
+        std::cout << "    joint " << i << " pos: " << js.joint_pos_()
+                  << ", model_id: " << static_cast<int>(js.model_id_())
+                  << ", motor_id: " << static_cast<int>(js.motor_id_())
+                  << ", joint_error: " << static_cast<int>(js.joint_error_()) << std::endl;
     }
 }
 
@@ -545,7 +555,7 @@ int main()
     ChannelFactory::Instance()->Init(0);
     
     // 3. 创建 Subscriber 对象，绑定话题和消息类型
-    ChannelSubscriber<robot_msgs::msg::dds::AllJointState_> subscriber(LOW_STATE_TOPIC);
+    ChannelSubscriber<robot_msgs::msg::dds_::AllJointState_> subscriber(LOW_STATE_TOPIC);
     
     // 4. 初始化通信通道并注册回调函数
     subscriber.InitChannel(Handler);
@@ -558,6 +568,91 @@ int main()
     return 0;
 }
 ```
+
+**IMU / 导航数据订阅示例**
+
+示例路径：examples/imu_nav/subscriber.cpp
+
+​    该示例演示了如何使用 SDK 订阅 IMU 与组合导航融合数据（NavAll_），话题为 rt/nav_all，并在回调函数中读取加速度、角速度、欧拉角、四元数、GNSS 经纬高、东北天速度、UTC 时间、融合/GNSS 状态、温度与气压等信息。
+
+```cpp
+#include <chrono>
+#include <iostream>
+#include <thread>
+
+#include <zv/robot/channel/channel_subscriber.hpp>
+#include "NavAll_.hpp"
+
+// 订阅的话题名（IMU / 组合导航融合数据）
+static const std::string NAV_ALL_TOPIC = "rt/nav_all";
+
+using namespace zv::robot;
+using namespace zv::common;
+
+// 1. 消息回调函数，当有 NavAll_ 消息到达指定话题时，SDK 自动调用该函数
+void Handler(const void* msg)
+{
+    // 将通用指针转换为具体的 NavAll_ 消息类型
+    const yesense_interface::msg::dds_::NavAll_* nav_msg =
+        (const yesense_interface::msg::dds_::NavAll_*)msg;
+
+    // 取出各子结构体引用
+    const auto& acc = nav_msg->acc_();
+    const auto& gyro = nav_msg->gyro_();
+    const auto& euler = nav_msg->euler_();
+    const auto& quat = nav_msg->quat_();
+    const auto& pos = nav_msg->pos_();
+    const auto& vel = nav_msg->vel_();
+    const auto& status = nav_msg->status_();
+    const auto& temp = nav_msg->temp_();
+    const auto& pressure = nav_msg->pressure_();
+    const auto& utc = nav_msg->utc_();
+    uint16_t tid = nav_msg->tid_().tid_();
+
+    // uint8_t 直接输出会被当作字符，转 int 打印
+    std::cout << "===== IMU NavAll =====" << std::endl;
+    std::cout << "  tid: " << tid << std::endl;
+    std::cout << "  acc  [x, y, z]: " << acc.x_() << ", " << acc.y_() << ", " << acc.z_() << std::endl;
+    std::cout << "  gyro [x, y, z]: " << gyro.x_() << ", " << gyro.y_() << ", " << gyro.z_() << std::endl;
+    std::cout << "  euler [pitch, roll, yaw]: " << euler.pitch_() << ", " << euler.roll_() << ", " << euler.yaw_() << std::endl;
+    std::cout << "  quat [q0, q1, q2, q3]: " << quat.q0_() << ", " << quat.q1_() << ", " << quat.q2_() << ", " << quat.q3_() << std::endl;
+    std::cout << "  gnss [lon, lat, alt]: " << pos.longitude_() << ", " << pos.latitude_() << ", " << pos.altitude_() << std::endl;
+    std::cout << "  vel  [e, n, u]: " << vel.vel_e_() << ", " << vel.vel_n_() << ", " << vel.vel_u_() << std::endl;
+    std::cout << "  utc  [" << static_cast<int>(utc.year_()) << "-"
+              << static_cast<int>(utc.month_()) << "-"
+              << static_cast<int>(utc.day_()) << " "
+              << static_cast<int>(utc.hour_()) << ":"
+              << static_cast<int>(utc.min_()) << ":"
+              << static_cast<int>(utc.sec_()) << "."
+              << utc.ms_() << "]" << std::endl;
+    std::cout << "  status [fusion, gnss]: " << static_cast<int>(status.fusion_status_())
+              << ", " << static_cast<int>(status.gnss_status_()) << std::endl;
+    std::cout << "  temp: " << temp.temp_() << std::endl;
+    std::cout << "  pressure: " << pressure.val_() << std::endl;
+}
+
+int main()
+{
+    // 2. 初始化 Channel 工厂，管理底层通信资源
+    ChannelFactory::Instance()->Init(0);
+
+    // 3. 创建 Subscriber 对象，绑定话题和消息类型
+    ChannelSubscriber<yesense_interface::msg::dds_::NavAll_> subscriber(NAV_ALL_TOPIC);
+
+    // 4. 初始化通信通道并注册回调函数
+    subscriber.InitChannel(Handler);
+
+    // 5. 保持进程运行，Subscriber 在内部线程接收消息并调用 Handler
+    while (true)
+    {
+        std::this_thread::sleep_for(std::chrono::seconds(10));
+    }
+
+    return 0;
+}
+```
+
+> 该示例对应 `examples/CMakeLists.txt` 中的 `imuNavSubscriber` 构建目标，编译后生成 `imuNavSubscriber` 可执行文件。
 
 #### 消息类型介绍
 
@@ -573,14 +668,17 @@ int main()
 
 **单个关节状态（JointState_）**
 
-| 字段名            | 类型    | 描述         |
-| ----------------- | ------- | ------------ |
-| **joint_pos_**    | double  | 关节目标位置 |
-| **joint_vel_**    | double  | 关节目标速度 |
-| **joint_torque_** | double  | 关节目标力矩 |
-| **temp_motor_**   | int32_t | 电机温度     |
-| **temp_mos_**     | int32_t | MOS温度      |
-| **error_**        | int32_t | 错误码       |
+| 字段名            | 类型    | 描述           |
+| ----------------- | ------- | -------------- |
+| **model_id_**     | uint8_t | 模型/部件 id   |
+| **motor_id_**     | uint8_t | 电机 id        |
+| **joint_pos_**    | double  | 关节目标位置   |
+| **joint_vel_**    | double  | 关节目标速度   |
+| **joint_torque_** | double  | 关节目标力矩   |
+| **temp_motor_**   | int32_t | 电机温度       |
+| **temp_mos_**     | int32_t | MOS温度        |
+| **error_**        | int32_t | 错误码         |
+| **joint_error_**  | uint8_t | 关节错误标志   |
 
 **所有关节集中控制命令（AllJointCmd_）**
 
@@ -593,19 +691,12 @@ int main()
 
 **所有关节状态（AllJointState_）**
 
-| 字段名            | 类型                       | 描述                                 |
-| ----------------- | -------------------------- | ------------------------------------ |
-| **timestamp_**    | int64_t                    | 时间戳，标记状态数据生成的时间       |
-| **index_**        | int64_t                    | 索引，标识状态序列                   |
-| **joint_states_** | std::vector<joint_states_> | 关节状态数组，包含每个关节的详细信息 |
-
-**所有关节状态（AllJointState_）**
-
-| 字段名            | 类型                       | 描述                                 |
-| ----------------- | -------------------------- | ------------------------------------ |
-| **timestamp_**    | int64_t                    | 时间戳，标记状态数据生成的时间       |
-| **index_**        | int64_t                    | 索引，标识状态序列                   |
-| **joint_states_** | std::vector<joint_states_> | 关节状态数组，包含每个关节的详细信息 |
+| 字段名             | 类型                      | 描述                                 |
+| ------------------ | ------------------------- | ------------------------------------ |
+| **timestamp_**     | int64_t                   | 时间戳，标记状态数据生成的时间       |
+| **index_**         | int64_t                   | 索引，标识状态序列                   |
+| **used_for_ctrl_** | uint8_t                   | 是否用于控制标志                     |
+| **joint_states_**  | std::vector<JointState_>  | 关节状态数组，包含每个关节的详细信息 |
 
 **远程控制参数配置（RemoteControlChange_）**
 
@@ -616,10 +707,46 @@ int main()
 
 **远程控制机器人运动（RemoteControlMotion_）**
 
-| 字段名            | 类型  | 描述             |
-| ----------------- | ----- | ---------------- |
-| **vx_**           | float | X轴方向线速度    |
-| **vy_**           | float | Y轴方向线速度    |
-| **vyaw_**         | float | 偏航角速度       |
-| **gait_step_**    | float | 步态步长         |
-| **is_continous_** | bool  | 是否连续运动标志 |
+| 字段名            | 类型        | 描述             |
+| ----------------- | ----------- | ---------------- |
+| **token_**        | std::string | 令牌/鉴权标识    |
+| **vx_**           | float       | X轴方向线速度    |
+| **vy_**           | float       | Y轴方向线速度    |
+| **vyaw_**         | float       | 偏航角速度       |
+| **gait_step_**    | float       | 步态步长         |
+| **is_continous_** | bool        | 是否连续运动标志 |
+
+#### IMU / 导航消息类型
+
+以下消息类型位于命名空间 `yesense_interface::msg::dds_`，用于 IMU 与组合导航融合数据（话题 `rt/nav_all`）。
+
+**组合导航总成（NavAll_）**
+
+| 字段名         | 类型        | 描述                 |
+| -------------- | ----------- | -------------------- |
+| **tid_**       | Tid_        | 帧/线程标识          |
+| **acc_**       | ThreeAxis_  | 三轴加速度           |
+| **gyro_**      | ThreeAxis_  | 三轴角速度           |
+| **euler_**     | EulerAngle_ | 欧拉角               |
+| **quat_**      | Quat_       | 四元数               |
+| **temp_**      | SensorTemp_ | 传感器温度           |
+| **pos_**       | GnssPos_    | GNSS 位置            |
+| **status_**    | NavStatus_  | 导航状态             |
+| **vel_**       | Vel_        | 速度（东北天）       |
+| **utc_**       | Utc_        | UTC 时间             |
+| **pressure_**  | Pressure_   | 气压                 |
+
+**子结构体字段**
+
+| 结构体        | 字段（类型）                                                                        |
+| ------------- | ----------------------------------------------------------------------------------- |
+| Tid_          | tid_(uint16_t)                                                                       |
+| ThreeAxis_    | x_/y_/z_(float)                                                                      |
+| EulerAngle_   | pitch_/roll_/yaw_(float)                                                             |
+| Quat_         | q0_/q1_/q2_/q3_(double)                                                              |
+| GnssPos_      | longitude_(double)、latitude_(double)、altitude_(float)                             |
+| Vel_          | vel_e_/vel_n_/vel_u_(float)                                                          |
+| NavStatus_    | fusion_status_(uint8_t)、gnss_status_(uint8_t)                                       |
+| SensorTemp_   | temp_(float)                                                                         |
+| Utc_          | year_(uint16_t)、month_/day_/hour_/min_/sec_(uint8_t)、ms_(uint32_t)                 |
+| Pressure_     | val_(float)                                                                          |

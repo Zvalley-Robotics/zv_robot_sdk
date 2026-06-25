@@ -1,3 +1,15 @@
+import os
+import sys
+
+sys.path.insert(
+    0,
+    os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+        "libs",
+        "python",
+    ),
+)
+
 import zv_robot_sdk_python as zv
 import time
 
