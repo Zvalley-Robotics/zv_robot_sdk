@@ -1,69 +1,68 @@
+#include <chrono>
+#include <csignal>
+#include <iostream>
+#include <string>
 #include <thread>
-
 #include <zv/robot/channel/channel_publisher.hpp>
-#include "AllJointCmd_.hpp"
 
-static const std::string LOW_CMD_TOPIC = "rt/all_joint_cmd";
+#include "HeadControl_.hpp"
+#include "Twist_.hpp"
+
+// DDS 话题名 = rt + ROS2 绝对路径。
+static const std::string HEAD_CONTROL_TOPIC = "rt/robot/external/head_control";
+static const std::string CMD_VEL_TOPIC = "rt/cmd_vel";
+static constexpr auto PUBLISH_PERIOD = std::chrono::seconds(1);
+
+static volatile std::sig_atomic_t keep_running = 1;
+
+static void HandleSignal(int) { keep_running = 0; }
 
 using namespace zv::robot;
-using namespace zv::common;
 
 int main()
 {
+    std::signal(SIGINT, HandleSignal);
+    std::signal(SIGTERM, HandleSignal);
+
+    // 1. 初始化 Channel 工厂（全局通信资源）
     ChannelFactory::Instance()->Init(0);
-    ChannelPublisher<robot_msgs::msg::dds_::AllJointCmd_> publisher(
-        LOW_CMD_TOPIC);
 
-    publisher.InitChannel();
+    // 2. 创建 Publisher，绑定 Topic 和消息类型
+    ChannelPublisher<robot_interfaces::msg::dds_::HeadControl_> head_publisher(HEAD_CONTROL_TOPIC);
+    ChannelPublisher<geometry_msgs::msg::dds_::Twist_> velocity_publisher(CMD_VEL_TOPIC);
 
-    while (true)
-    {
-        robot_msgs::msg::dds_::AllJointCmd_ msg;
+    // 3. 初始化通信通道
+    head_publisher.InitChannel();
+    velocity_publisher.InitChannel();
 
-        const std::vector<double> joint_pos {
-            -0.07279034703969955, -0.016103055328130722, -0.03257334977388382, 0.17935675382614136,
-            -0.0654093474149704, 0.04607636481523514, -0.03722424805164337, -0.0016681907000020146,
-            0.019157331436872482, 0.16593047976493835, -0.04944632947444916, -0.0660635381937027,
-            0.22476732730865479, 0.1516973376274109, -0.004047076217830181, -0.4731024205684662,
-            -0.046716321259737015, 0.21820136904716492, -0.14873942732810974, 0.010256296023726463,
-            -0.4458266794681549, 0.05600139498710632, 0.022615695372223854
-        };
+    // 4. 构造 HeadControl_ 消息，设定头部控制参数
+    // 按需修改目标角度（度）。持续发布使用绝对角度，避免相对角度累加。
+    robot_interfaces::msg::dds_::HeadControl_ head;
+    head.yaw_(0.0f);
+    head.pitch_(0.0f);
+    head.is_relative_(false);
 
-        const std::vector<double> kp {
-            100.0, 100.0, 100.0, 150.0, 10.0, 10.0,
-            100.0, 100.0, 100.0, 150.0, 10.0, 10.0,
-            40.0, 40.0, 40.0, 40.0, 40.0,
-            40.0, 40.0, 40.0, 40.0, 40.0,
-            200
-        };
+    // 5. 构造 Twist_ 消息，设定底盘控制参数
+    // 按需修改底盘速度：linear.x/y 为 m/s，angular.z 为 rad/s。
+    // 其余分量保持零值。
+    geometry_msgs::msg::dds_::Twist_ velocity;
+    velocity.linear_().x_(0.0);
+    velocity.linear_().y_(0.0);
+    velocity.angular_().z_(0.0);
 
-        const std::vector<double> kd {
-            2.0, 2.0, 2.0, 4.0, 0.5, 0.5,
-            2.0, 2.0, 2.0, 4.0, 0.5, 0.5,
-            1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-            1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-            5.0
-        };
+    std::cout << "Publishing " << HEAD_CONTROL_TOPIC << " and " << CMD_VEL_TOPIC << " at 1 Hz; press Ctrl+C to stop."
+              << std::endl;
 
-        auto& cmds = msg.joint_cmds_();
-        cmds.clear();
-        cmds.reserve(joint_pos.size());
-        for (int i = 0; i < 23; i++)
-        {
-            cmds.emplace_back();
-            auto& c = cmds.back();
-            c.joint_pos_(joint_pos[i]);
-            c.joint_vel_(0);
-            c.joint_torque_(0);
-            c.kp_(kp[i]);
-            c.kd_(kd[i]);
-        }
-
-        publisher.Write(msg);
-
-        std::cout << "test [tx] " << std::endl;
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+    auto next_publish_time = std::chrono::steady_clock::now();
+    while (keep_running != 0) {
+        // 6. 发布消息到 Topic
+        head_publisher.Write(head);
+        velocity_publisher.Write(velocity);
+        next_publish_time += PUBLISH_PERIOD;
+        std::this_thread::sleep_until(next_publish_time);
     }
 
+    velocity_publisher.Write(geometry_msgs::msg::dds_::Twist_{});
+    std::cout << "Stopped; sent zero velocity." << std::endl;
     return 0;
 }

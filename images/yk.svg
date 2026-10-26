@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="840" viewBox="0 0 800 840" role="img" aria-labelledby="title description">
+  <title id="title">status 状态切换示意图</title>
+  <desc id="description">INIT 通过 ready 进入 READY，再通过 walk 进入 RL_ACTIVE；READY 和 RL_ACTIVE 可通过 damp 进入 DAMP，DAMP 通过 reinit 返回 INIT。此图为四个主要状态的简化示意。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="16" markerHeight="14" refX="14" refY="7" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 16 7 L 0 14 L 4 7 Z" fill="#5b5b5b"/>
+    </marker>
+  </defs>
+  <style>
+    .edge { fill: none; stroke: #5b5b5b; stroke-width: 3; stroke-linejoin: round; marker-end: url(#arrow); }
+    .node { fill: #7482da; stroke: #5b5b5b; stroke-width: 3; }
+    text { font-family: Arial, "Noto Sans CJK SC", sans-serif; text-anchor: middle; }
+    .state { fill: #ffffff; font-size: 30px; }
+  </style>
+  <rect width="800" height="840" fill="#ffffff"/>
+
+  <g aria-label="状态切换">
+    <path class="edge" data-command="ready" d="M 304 120 H 620 V 336"/>
+
+    <path class="edge" data-command="walk" d="M 620 504 V 720 H 304"/>
+
+    <path class="edge" data-command="damp" d="M 536 420 H 304"/>
+
+    <path class="edge" data-command="damp" d="M 220 636 V 504"/>
+
+    <path class="edge" data-command="reinit" d="M 220 336 V 204"/>
+  </g>
+
+  <g aria-label="初始化">
+    <circle class="node" cx="220" cy="120" r="84"/>
+    <text class="state" x="220" y="131">INIT</text>
+  </g>
+  <g aria-label="就绪">
+    <circle class="node" cx="620" cy="420" r="84"/>
+    <text class="state" x="620" y="431">READY</text>
+  </g>
+  <g aria-label="行走控制">
+    <circle class="node" cx="220" cy="720" r="84"/>
+    <text class="state" x="220" y="730" style="font-size:26px">RL_ACTIVE</text>
+  </g>
+  <g aria-label="阻尼">
+    <circle class="node" cx="220" cy="420" r="84"/>
+    <text class="state" x="220" y="431">DAMP</text>
+  </g>
+</svg>

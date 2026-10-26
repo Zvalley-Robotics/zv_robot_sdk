@@ -37,4 +37,4 @@ using DdsWriterQos = dds::pub::qos::DataWriterQos;
  */
 using DdsReaderQos = dds::sub::qos::DataReaderQos;
 
-}
+}  // namespace zv::common

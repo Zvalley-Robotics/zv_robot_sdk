@@ -1,23 +1,23 @@
 #pragma once
 
 #include <dds/dds.hpp>
-
 #include <zv/common/dds/dds_callback.hpp>
 
 /*
  * dds wait sub/pub matched default time.
  * default 10000 us
  */
-#define ZV_DDS_WAIT_MATCHED_TIME_MIN   10000
-#define ZV_DDS_WAIT_MATCHED_TIME_MAX   1000000
+#define ZV_DDS_WAIT_MATCHED_TIME_MIN 10000
+#define ZV_DDS_WAIT_MATCHED_TIME_MAX 1000000
 
 namespace zv::common
 {
 
 using namespace org::eclipse::cyclonedds;
 
-template<typename T>
-T& getRef(const std::shared_ptr<T>& ptr) {
+template <typename T>
+T & getRef(const std::shared_ptr<T> & ptr)
+{
     if (!ptr) {
         throw std::runtime_error("Dereferencing null shared_ptr");
     }
@@ -40,22 +40,22 @@ using DdsParticipantPtr = std::shared_ptr<dds::domain::DomainParticipant>;
 using DdsPublisherPtr = std::shared_ptr<dds::pub::Publisher>;
 using DdsSubscriberPtr = std::shared_ptr<dds::sub::Subscriber>;
 
-template<typename MSG>
+template <typename MSG>
 using DdsTopic = dds::topic::Topic<MSG>;
 
-template<typename MSG>
+template <typename MSG>
 using DdsTopicPtr = std::shared_ptr<dds::topic::Topic<MSG>>;
 
-template<typename MSG>
+template <typename MSG>
 using DdsWriter = dds::pub::DataWriter<MSG>;
 
-template<typename MSG>
+template <typename MSG>
 using DdsWriterPtr = std::shared_ptr<dds::pub::DataWriter<MSG>>;
 
-template<typename MSG>
+template <typename MSG>
 using DdsReader = dds::sub::DataReader<MSG>;
 
-template<typename MSG>
+template <typename MSG>
 using DdsReaderPtr = std::shared_ptr<dds::sub::DataReader<MSG>>;
 
 // template<typename MSG>
@@ -64,53 +64,43 @@ using DdsReaderPtr = std::shared_ptr<dds::sub::DataReader<MSG>>;
 /*
  * @brief: DdsReaderListener
  */
-template<typename MSG>
+template <typename MSG>
 class DdsReaderListener : public virtual dds::sub::NoOpDataReaderListener<MSG>
 {
 public:
     using NATIVE_TYPE = ::dds::sub::DataReaderListener<MSG>;
     using MSG_PTR = std::shared_ptr<MSG>;
 
-    explicit DdsReaderListener() :
-        mMask(::dds::core::status::StatusMask::none())
-    {}
+    explicit DdsReaderListener() : mMask(::dds::core::status::StatusMask::none()) {}
 
-    ~DdsReaderListener()
-    {}
+    ~DdsReaderListener() {}
 
-    void SetCallback(const DdsReaderCallback& cb)
+    void SetCallback(const DdsReaderCallback & cb)
     {
-        if (cb.HasMessageHandler())
-        {
+        if (cb.HasMessageHandler()) {
             mMask |= ::dds::core::status::StatusMask::data_available();
         }
 
         mCallbackPtr.reset(new DdsReaderCallback(cb));
     }
 
-    const ::dds::core::status::StatusMask& GetStatusMask() const
-    {
-        return mMask;
-    }
+    const ::dds::core::status::StatusMask & GetStatusMask() const { return mMask; }
 
 private:
-    void on_data_available(::dds::sub::DataReader<MSG>& reader)
+    void on_data_available(::dds::sub::DataReader<MSG> & reader)
     {
         ::dds::sub::LoanedSamples<MSG> samples;
         samples = reader.take();
 
-        if (samples.length() <= 0)
-        {
+        if (samples.length() <= 0) {
             return;
         }
 
         typename ::dds::sub::LoanedSamples<MSG>::const_iterator iter;
-        for (iter=samples.begin(); iter<samples.end(); ++iter)
-        {
-            const MSG& m = iter->data();
-            if (iter->info().valid())
-            {
-                mCallbackPtr->OnDataAvailable((const void*)&m);
+        for (iter = samples.begin(); iter < samples.end(); ++iter) {
+            const MSG & m = iter->data();
+            if (iter->info().valid()) {
+                mCallbackPtr->OnDataAvailable((const void *)&m);
             }
         }
     }
@@ -121,11 +111,8 @@ private:
     DdsReaderCallbackPtr mCallbackPtr;
 };
 
-template<typename MSG>
+template <typename MSG>
 using DdsReaderListenerPtr = std::shared_ptr<DdsReaderListener<MSG>>;
-
-
-
 
 // template <typename MSG>
 // class DdsReaderListener : public DataReaderListener {
@@ -157,4 +144,4 @@ using DdsReaderListenerPtr = std::shared_ptr<DdsReaderListener<MSG>>;
 
 // template <typename MSG>
 // using DdsReaderListenerPtr = std::shared_ptr<DdsReaderListener<MSG>>;
-}
+}  // namespace zv::common

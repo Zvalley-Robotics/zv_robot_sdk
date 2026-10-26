@@ -1,46 +1,42 @@
 #pragma once
 
 #include <mutex>
-
 #include <zv/common/dds/dds_factory_model.hpp>
 #include <zv/third_party/nlohmann_json/json.hpp>
 
 namespace zv::robot
 {
 
-template<typename MSG>
+template <typename MSG>
 using Channel = zv::common::DdsTopicChannel<MSG>;
 
-template<typename MSG>
+template <typename MSG>
 using ChannelPtr = zv::common::DdsTopicChannelPtr<MSG>;
 
 class ChannelFactory
 {
 public:
-    static ChannelFactory* Instance()
-    {
-        static ChannelFactory instance;
-        return &instance;
-    }
+    static ChannelFactory * Instance();
 
-    void Init(int32_t domain_id, const std::string& network_interface = "");
-    void Init(const nlohmann::json &config);
+    void Init(int32_t domain_id, const std::string & network_interface = "");
+    void Init(const nlohmann::json & config);
 
     void Release();
 
-    template<typename MSG>
-    ChannelPtr<MSG> CreateSendChannel(const std::string& name)
+    template <typename MSG>
+    ChannelPtr<MSG> CreateSendChannel(const std::string & name)
     {
         ChannelPtr<MSG> channel_ptr = dds_factory_ptr_->CreateTopicChannel<MSG>(name);
         dds_factory_ptr_->SetWriter(channel_ptr);
         return channel_ptr;
     }
 
-    template<typename MSG>
-    ChannelPtr<MSG> CreateRecvChannel(const std::string& name, std::function<void(const void*)> callback, int32_t queue_len = 0)
+    template <typename MSG>
+    ChannelPtr<MSG> CreateRecvChannel(const std::string & name, std::function<void(const void *)> callback,
+                                      int32_t queue_len = 0, bool reliable = true)
     {
         ChannelPtr<MSG> channel_ptr = dds_factory_ptr_->CreateTopicChannel<MSG>(name);
-        dds_factory_ptr_->SetReader(channel_ptr, callback, queue_len);
+        dds_factory_ptr_->SetReader(channel_ptr, callback, queue_len, reliable);
         return channel_ptr;
     }
 
@@ -56,4 +52,4 @@ private:
     std::mutex mutex_;
 };
 
-}
+}  // namespace zv::robot

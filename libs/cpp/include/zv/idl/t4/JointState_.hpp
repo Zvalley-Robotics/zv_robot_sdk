@@ -10,8 +10,9 @@
 #define DDSCXX_JOINTSTATE__HPP
 
 #include <cstdint>
+#include <string>
 
-namespace robot_msgs
+namespace robot_interfaces
 {
 namespace msg
 {
@@ -19,96 +20,103 @@ namespace dds_
 {
 namespace JointState_Constants
 {
-const uint8_t JOINT_NORMAL_ = 0;
+const uint8_t JOINT_ERR_NONE_ = 0;
 
-const uint8_t JOINT_ERROR_ = 1;
+const uint8_t JOINT_ERR_MOTOR_WARN_ = 1;
 
-const uint8_t JOINT_INTER_DISORDER_ = 2;
+const uint8_t JOINT_ERR_INVALID_ANGLE_STATE_ = 2;
 
-const uint8_t JOINT_INVALID_ANGLE_ = 3;
+const uint8_t JOINT_ERR_INVALID_ANGLE_CMD_ = 3;
 
-const uint8_t JOINT_INVALID_CMD_ = 4;
-
-const uint8_t JOINT_ZERO_ABSENCE_ = 5;
+const uint8_t JOINT_ERR_ZERO_ABSENCE_ = 4;
 
 }
 
 class JointState_
 {
 private:
- uint8_t model_id__ = 0;
- uint8_t motor_id__ = 0;
- double joint_pos__ = 0.0;
- double joint_vel__ = 0.0;
- double joint_torque__ = 0.0;
- int32_t temp_motor__ = 0;
- int32_t temp_mos__ = 0;
- int32_t error__ = 0;
+ std::string joint_name__;
+ float position__ = 0.0f;
+ float velocity__ = 0.0f;
+ float effort__ = 0.0f;
+ float motor_temp__ = 0.0f;
+ float mos_temp__ = 0.0f;
+ uint8_t motor_error__ = 0;
+ bool enabled__ = false;
  uint8_t joint_error__ = 0;
+ std::string error_message__;
 
 public:
   JointState_() = default;
 
   explicit JointState_(
-    uint8_t model_id_,
-    uint8_t motor_id_,
-    double joint_pos_,
-    double joint_vel_,
-    double joint_torque_,
-    int32_t temp_motor_,
-    int32_t temp_mos_,
-    int32_t error_,
-    uint8_t joint_error_) :
-    model_id__(model_id_),
-    motor_id__(motor_id_),
-    joint_pos__(joint_pos_),
-    joint_vel__(joint_vel_),
-    joint_torque__(joint_torque_),
-    temp_motor__(temp_motor_),
-    temp_mos__(temp_mos_),
-    error__(error_),
-    joint_error__(joint_error_) { }
+    const std::string& joint_name_,
+    float position_,
+    float velocity_,
+    float effort_,
+    float motor_temp_,
+    float mos_temp_,
+    uint8_t motor_error_,
+    bool enabled_,
+    uint8_t joint_error_,
+    const std::string& error_message_) :
+    joint_name__(joint_name_),
+    position__(position_),
+    velocity__(velocity_),
+    effort__(effort_),
+    motor_temp__(motor_temp_),
+    mos_temp__(mos_temp_),
+    motor_error__(motor_error_),
+    enabled__(enabled_),
+    joint_error__(joint_error_),
+    error_message__(error_message_) { }
 
-  uint8_t model_id_() const { return this->model_id__; }
-  uint8_t& model_id_() { return this->model_id__; }
-  void model_id_(uint8_t _val_) { this->model_id__ = _val_; }
-  uint8_t motor_id_() const { return this->motor_id__; }
-  uint8_t& motor_id_() { return this->motor_id__; }
-  void motor_id_(uint8_t _val_) { this->motor_id__ = _val_; }
-  double joint_pos_() const { return this->joint_pos__; }
-  double& joint_pos_() { return this->joint_pos__; }
-  void joint_pos_(double _val_) { this->joint_pos__ = _val_; }
-  double joint_vel_() const { return this->joint_vel__; }
-  double& joint_vel_() { return this->joint_vel__; }
-  void joint_vel_(double _val_) { this->joint_vel__ = _val_; }
-  double joint_torque_() const { return this->joint_torque__; }
-  double& joint_torque_() { return this->joint_torque__; }
-  void joint_torque_(double _val_) { this->joint_torque__ = _val_; }
-  int32_t temp_motor_() const { return this->temp_motor__; }
-  int32_t& temp_motor_() { return this->temp_motor__; }
-  void temp_motor_(int32_t _val_) { this->temp_motor__ = _val_; }
-  int32_t temp_mos_() const { return this->temp_mos__; }
-  int32_t& temp_mos_() { return this->temp_mos__; }
-  void temp_mos_(int32_t _val_) { this->temp_mos__ = _val_; }
-  int32_t error_() const { return this->error__; }
-  int32_t& error_() { return this->error__; }
-  void error_(int32_t _val_) { this->error__ = _val_; }
+  const std::string& joint_name_() const { return this->joint_name__; }
+  std::string& joint_name_() { return this->joint_name__; }
+  void joint_name_(const std::string& _val_) { this->joint_name__ = _val_; }
+  void joint_name_(std::string&& _val_) { this->joint_name__ = _val_; }
+  float position_() const { return this->position__; }
+  float& position_() { return this->position__; }
+  void position_(float _val_) { this->position__ = _val_; }
+  float velocity_() const { return this->velocity__; }
+  float& velocity_() { return this->velocity__; }
+  void velocity_(float _val_) { this->velocity__ = _val_; }
+  float effort_() const { return this->effort__; }
+  float& effort_() { return this->effort__; }
+  void effort_(float _val_) { this->effort__ = _val_; }
+  float motor_temp_() const { return this->motor_temp__; }
+  float& motor_temp_() { return this->motor_temp__; }
+  void motor_temp_(float _val_) { this->motor_temp__ = _val_; }
+  float mos_temp_() const { return this->mos_temp__; }
+  float& mos_temp_() { return this->mos_temp__; }
+  void mos_temp_(float _val_) { this->mos_temp__ = _val_; }
+  uint8_t motor_error_() const { return this->motor_error__; }
+  uint8_t& motor_error_() { return this->motor_error__; }
+  void motor_error_(uint8_t _val_) { this->motor_error__ = _val_; }
+  bool enabled_() const { return this->enabled__; }
+  bool& enabled_() { return this->enabled__; }
+  void enabled_(bool _val_) { this->enabled__ = _val_; }
   uint8_t joint_error_() const { return this->joint_error__; }
   uint8_t& joint_error_() { return this->joint_error__; }
   void joint_error_(uint8_t _val_) { this->joint_error__ = _val_; }
+  const std::string& error_message_() const { return this->error_message__; }
+  std::string& error_message_() { return this->error_message__; }
+  void error_message_(const std::string& _val_) { this->error_message__ = _val_; }
+  void error_message_(std::string&& _val_) { this->error_message__ = _val_; }
 
   bool operator==(const JointState_& _other) const
   {
     (void) _other;
-    return model_id__ == _other.model_id__ &&
-      motor_id__ == _other.motor_id__ &&
-      joint_pos__ == _other.joint_pos__ &&
-      joint_vel__ == _other.joint_vel__ &&
-      joint_torque__ == _other.joint_torque__ &&
-      temp_motor__ == _other.temp_motor__ &&
-      temp_mos__ == _other.temp_mos__ &&
-      error__ == _other.error__ &&
-      joint_error__ == _other.joint_error__;
+    return joint_name__ == _other.joint_name__ &&
+      position__ == _other.position__ &&
+      velocity__ == _other.velocity__ &&
+      effort__ == _other.effort__ &&
+      motor_temp__ == _other.motor_temp__ &&
+      mos_temp__ == _other.mos_temp__ &&
+      motor_error__ == _other.motor_error__ &&
+      enabled__ == _other.enabled__ &&
+      joint_error__ == _other.joint_error__ &&
+      error_message__ == _other.error_message__;
   }
 
   bool operator!=(const JointState_& _other) const
@@ -132,68 +140,77 @@ namespace eclipse {
 namespace cyclonedds {
 namespace topic {
 
-template <> constexpr const char* TopicTraits<::robot_msgs::msg::dds_::JointState_>::getTypeName()
+template <> constexpr const char* TopicTraits<::robot_interfaces::msg::dds_::JointState_>::getTypeName()
 {
-  return "robot_msgs::msg::dds_::JointState_";
+  return "robot_interfaces::msg::dds_::JointState_";
 }
 
-template <> constexpr bool TopicTraits<::robot_msgs::msg::dds_::JointState_>::isKeyless()
+template <> constexpr bool TopicTraits<::robot_interfaces::msg::dds_::JointState_>::isSelfContained()
+{
+  return false;
+}
+
+template <> constexpr bool TopicTraits<::robot_interfaces::msg::dds_::JointState_>::isKeyless()
 {
   return true;
 }
 
 #ifdef DDSCXX_HAS_TYPE_DISCOVERY
-template<> constexpr unsigned int TopicTraits<::robot_msgs::msg::dds_::JointState_>::type_map_blob_sz() { return 590; }
-template<> constexpr unsigned int TopicTraits<::robot_msgs::msg::dds_::JointState_>::type_info_blob_sz() { return 100; }
-template<> inline const uint8_t * TopicTraits<::robot_msgs::msg::dds_::JointState_>::type_map_blob() {
+template<> constexpr unsigned int TopicTraits<::robot_interfaces::msg::dds_::JointState_>::type_map_blob_sz() { return 646; }
+template<> constexpr unsigned int TopicTraits<::robot_interfaces::msg::dds_::JointState_>::type_info_blob_sz() { return 100; }
+template<> inline const uint8_t * TopicTraits<::robot_interfaces::msg::dds_::JointState_>::type_map_blob() {
   static const uint8_t blob[] = {
- 0xbb,  0x00,  0x00,  0x00,  0x01,  0x00,  0x00,  0x00,  0xf1,  0xb7,  0xb3,  0xa6,  0xde,  0xc7,  0x29,  0x3d, 
- 0xae,  0xbb,  0x63,  0xdd,  0xc9,  0xee,  0x76,  0x00,  0xa3,  0x00,  0x00,  0x00,  0xf1,  0x51,  0x01,  0x00, 
- 0x01,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x93,  0x00,  0x00,  0x00,  0x09,  0x00,  0x00,  0x00, 
- 0x0b,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x01,  0x00,  0x02,  0x7d,  0x1f,  0x50,  0xa4,  0x00, 
- 0x0b,  0x00,  0x00,  0x00,  0x01,  0x00,  0x00,  0x00,  0x01,  0x00,  0x02,  0x37,  0x48,  0xbf,  0x34,  0x00, 
- 0x0b,  0x00,  0x00,  0x00,  0x02,  0x00,  0x00,  0x00,  0x01,  0x00,  0x0a,  0x06,  0x1b,  0x26,  0xf8,  0x00, 
- 0x0b,  0x00,  0x00,  0x00,  0x03,  0x00,  0x00,  0x00,  0x01,  0x00,  0x0a,  0xfd,  0xf3,  0x1d,  0x75,  0x00, 
- 0x0b,  0x00,  0x00,  0x00,  0x04,  0x00,  0x00,  0x00,  0x01,  0x00,  0x0a,  0x65,  0x3f,  0x72,  0x49,  0x00, 
- 0x0b,  0x00,  0x00,  0x00,  0x05,  0x00,  0x00,  0x00,  0x01,  0x00,  0x04,  0x5f,  0x89,  0xe7,  0xa2,  0x00, 
- 0x0b,  0x00,  0x00,  0x00,  0x06,  0x00,  0x00,  0x00,  0x01,  0x00,  0x04,  0xcb,  0xcb,  0xd9,  0x1d,  0x00, 
- 0x0b,  0x00,  0x00,  0x00,  0x07,  0x00,  0x00,  0x00,  0x01,  0x00,  0x04,  0x13,  0x4e,  0x90,  0xda,  0x00, 
+ 0xcc,  0x00,  0x00,  0x00,  0x01,  0x00,  0x00,  0x00,  0xf1,  0x53,  0xe4,  0x3b,  0x51,  0xbe,  0x58,  0x97, 
+ 0xec,  0x25,  0xb2,  0xdc,  0x98,  0xfe,  0xa7,  0x00,  0xb4,  0x00,  0x00,  0x00,  0xf1,  0x51,  0x01,  0x00, 
+ 0x01,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0xa4,  0x00,  0x00,  0x00,  0x0a,  0x00,  0x00,  0x00, 
+ 0x0c,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x01,  0x00,  0x70,  0x00,  0xd0,  0xee,  0xeb,  0xae, 
+ 0x0b,  0x00,  0x00,  0x00,  0x01,  0x00,  0x00,  0x00,  0x01,  0x00,  0x09,  0x6f,  0x37,  0x23,  0x8b,  0x00, 
+ 0x0b,  0x00,  0x00,  0x00,  0x02,  0x00,  0x00,  0x00,  0x01,  0x00,  0x09,  0xe1,  0x43,  0xce,  0x6d,  0x00, 
+ 0x0b,  0x00,  0x00,  0x00,  0x03,  0x00,  0x00,  0x00,  0x01,  0x00,  0x09,  0x33,  0x2f,  0x61,  0x08,  0x00, 
+ 0x0b,  0x00,  0x00,  0x00,  0x04,  0x00,  0x00,  0x00,  0x01,  0x00,  0x09,  0x4e,  0x10,  0xd2,  0xdd,  0x00, 
+ 0x0b,  0x00,  0x00,  0x00,  0x05,  0x00,  0x00,  0x00,  0x01,  0x00,  0x09,  0x5a,  0xf5,  0x24,  0x37,  0x00, 
+ 0x0b,  0x00,  0x00,  0x00,  0x06,  0x00,  0x00,  0x00,  0x01,  0x00,  0x02,  0xb9,  0xd5,  0x86,  0x97,  0x00, 
+ 0x0b,  0x00,  0x00,  0x00,  0x07,  0x00,  0x00,  0x00,  0x01,  0x00,  0x01,  0xf0,  0xf4,  0x6b,  0xf3,  0x00, 
  0x0b,  0x00,  0x00,  0x00,  0x08,  0x00,  0x00,  0x00,  0x01,  0x00,  0x02,  0x19,  0xb9,  0x05,  0x33,  0x00, 
- 0x63,  0x01,  0x00,  0x00,  0x01,  0x00,  0x00,  0x00,  0xf2,  0x94,  0x8a,  0x50,  0x45,  0x3c,  0x57,  0x4f, 
- 0x21,  0xab,  0x87,  0x59,  0xbc,  0xeb,  0xba,  0x00,  0x4b,  0x01,  0x00,  0x00,  0xf2,  0x51,  0x01,  0x00, 
- 0x2b,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x23,  0x00,  0x00,  0x00,  0x72,  0x6f,  0x62,  0x6f, 
- 0x74,  0x5f,  0x6d,  0x73,  0x67,  0x73,  0x3a,  0x3a,  0x6d,  0x73,  0x67,  0x3a,  0x3a,  0x64,  0x64,  0x73, 
- 0x5f,  0x3a,  0x3a,  0x4a,  0x6f,  0x69,  0x6e,  0x74,  0x53,  0x74,  0x61,  0x74,  0x65,  0x5f,  0x00,  0x00, 
- 0x13,  0x01,  0x00,  0x00,  0x09,  0x00,  0x00,  0x00,  0x18,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00, 
- 0x01,  0x00,  0x02,  0x00,  0x0a,  0x00,  0x00,  0x00,  0x6d,  0x6f,  0x64,  0x65,  0x6c,  0x5f,  0x69,  0x64, 
- 0x5f,  0x00,  0x00,  0x00,  0x18,  0x00,  0x00,  0x00,  0x01,  0x00,  0x00,  0x00,  0x01,  0x00,  0x02,  0x00, 
- 0x0a,  0x00,  0x00,  0x00,  0x6d,  0x6f,  0x74,  0x6f,  0x72,  0x5f,  0x69,  0x64,  0x5f,  0x00,  0x00,  0x00, 
- 0x19,  0x00,  0x00,  0x00,  0x02,  0x00,  0x00,  0x00,  0x01,  0x00,  0x0a,  0x00,  0x0b,  0x00,  0x00,  0x00, 
- 0x6a,  0x6f,  0x69,  0x6e,  0x74,  0x5f,  0x70,  0x6f,  0x73,  0x5f,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00, 
- 0x19,  0x00,  0x00,  0x00,  0x03,  0x00,  0x00,  0x00,  0x01,  0x00,  0x0a,  0x00,  0x0b,  0x00,  0x00,  0x00, 
- 0x6a,  0x6f,  0x69,  0x6e,  0x74,  0x5f,  0x76,  0x65,  0x6c,  0x5f,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00, 
- 0x1c,  0x00,  0x00,  0x00,  0x04,  0x00,  0x00,  0x00,  0x01,  0x00,  0x0a,  0x00,  0x0e,  0x00,  0x00,  0x00, 
- 0x6a,  0x6f,  0x69,  0x6e,  0x74,  0x5f,  0x74,  0x6f,  0x72,  0x71,  0x75,  0x65,  0x5f,  0x00,  0x00,  0x00, 
- 0x1a,  0x00,  0x00,  0x00,  0x05,  0x00,  0x00,  0x00,  0x01,  0x00,  0x04,  0x00,  0x0c,  0x00,  0x00,  0x00, 
- 0x74,  0x65,  0x6d,  0x70,  0x5f,  0x6d,  0x6f,  0x74,  0x6f,  0x72,  0x5f,  0x00,  0x00,  0x00,  0x00,  0x00, 
- 0x18,  0x00,  0x00,  0x00,  0x06,  0x00,  0x00,  0x00,  0x01,  0x00,  0x04,  0x00,  0x0a,  0x00,  0x00,  0x00, 
- 0x74,  0x65,  0x6d,  0x70,  0x5f,  0x6d,  0x6f,  0x73,  0x5f,  0x00,  0x00,  0x00,  0x15,  0x00,  0x00,  0x00, 
- 0x07,  0x00,  0x00,  0x00,  0x01,  0x00,  0x04,  0x00,  0x07,  0x00,  0x00,  0x00,  0x65,  0x72,  0x72,  0x6f, 
- 0x72,  0x5f,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x1b,  0x00,  0x00,  0x00,  0x08,  0x00,  0x00,  0x00, 
- 0x01,  0x00,  0x02,  0x00,  0x0d,  0x00,  0x00,  0x00,  0x6a,  0x6f,  0x69,  0x6e,  0x74,  0x5f,  0x65,  0x72, 
- 0x72,  0x6f,  0x72,  0x5f,  0x00,  0x00,  0x00,  0x00,  0x22,  0x00,  0x00,  0x00,  0x01,  0x00,  0x00,  0x00, 
- 0xf2,  0x94,  0x8a,  0x50,  0x45,  0x3c,  0x57,  0x4f,  0x21,  0xab,  0x87,  0x59,  0xbc,  0xeb,  0xba,  0xf1, 
- 0xb7,  0xb3,  0xa6,  0xde,  0xc7,  0x29,  0x3d,  0xae,  0xbb,  0x63,  0xdd,  0xc9,  0xee,  0x76, };
+ 0x0c,  0x00,  0x00,  0x00,  0x09,  0x00,  0x00,  0x00,  0x01,  0x00,  0x70,  0x00,  0x2e,  0xc6,  0x6e,  0x0a, 
+ 0x89,  0x01,  0x00,  0x00,  0x01,  0x00,  0x00,  0x00,  0xf2,  0x7f,  0x16,  0x35,  0x86,  0x41,  0xed,  0xc2, 
+ 0x34,  0x51,  0xc5,  0xfb,  0xf4,  0xa3,  0xbd,  0x00,  0x71,  0x01,  0x00,  0x00,  0xf2,  0x51,  0x01,  0x00, 
+ 0x31,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x29,  0x00,  0x00,  0x00,  0x72,  0x6f,  0x62,  0x6f, 
+ 0x74,  0x5f,  0x69,  0x6e,  0x74,  0x65,  0x72,  0x66,  0x61,  0x63,  0x65,  0x73,  0x3a,  0x3a,  0x6d,  0x73, 
+ 0x67,  0x3a,  0x3a,  0x64,  0x64,  0x73,  0x5f,  0x3a,  0x3a,  0x4a,  0x6f,  0x69,  0x6e,  0x74,  0x53,  0x74, 
+ 0x61,  0x74,  0x65,  0x5f,  0x00,  0x00,  0x00,  0x00,  0x31,  0x01,  0x00,  0x00,  0x0a,  0x00,  0x00,  0x00, 
+ 0x1a,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x01,  0x00,  0x70,  0x00,  0x0c,  0x00,  0x00,  0x00, 
+ 0x6a,  0x6f,  0x69,  0x6e,  0x74,  0x5f,  0x6e,  0x61,  0x6d,  0x65,  0x5f,  0x00,  0x00,  0x00,  0x00,  0x00, 
+ 0x18,  0x00,  0x00,  0x00,  0x01,  0x00,  0x00,  0x00,  0x01,  0x00,  0x09,  0x00,  0x0a,  0x00,  0x00,  0x00, 
+ 0x70,  0x6f,  0x73,  0x69,  0x74,  0x69,  0x6f,  0x6e,  0x5f,  0x00,  0x00,  0x00,  0x18,  0x00,  0x00,  0x00, 
+ 0x02,  0x00,  0x00,  0x00,  0x01,  0x00,  0x09,  0x00,  0x0a,  0x00,  0x00,  0x00,  0x76,  0x65,  0x6c,  0x6f, 
+ 0x63,  0x69,  0x74,  0x79,  0x5f,  0x00,  0x00,  0x00,  0x16,  0x00,  0x00,  0x00,  0x03,  0x00,  0x00,  0x00, 
+ 0x01,  0x00,  0x09,  0x00,  0x08,  0x00,  0x00,  0x00,  0x65,  0x66,  0x66,  0x6f,  0x72,  0x74,  0x5f,  0x00, 
+ 0x00,  0x00,  0x00,  0x00,  0x1a,  0x00,  0x00,  0x00,  0x04,  0x00,  0x00,  0x00,  0x01,  0x00,  0x09,  0x00, 
+ 0x0c,  0x00,  0x00,  0x00,  0x6d,  0x6f,  0x74,  0x6f,  0x72,  0x5f,  0x74,  0x65,  0x6d,  0x70,  0x5f,  0x00, 
+ 0x00,  0x00,  0x00,  0x00,  0x18,  0x00,  0x00,  0x00,  0x05,  0x00,  0x00,  0x00,  0x01,  0x00,  0x09,  0x00, 
+ 0x0a,  0x00,  0x00,  0x00,  0x6d,  0x6f,  0x73,  0x5f,  0x74,  0x65,  0x6d,  0x70,  0x5f,  0x00,  0x00,  0x00, 
+ 0x1b,  0x00,  0x00,  0x00,  0x06,  0x00,  0x00,  0x00,  0x01,  0x00,  0x02,  0x00,  0x0d,  0x00,  0x00,  0x00, 
+ 0x6d,  0x6f,  0x74,  0x6f,  0x72,  0x5f,  0x65,  0x72,  0x72,  0x6f,  0x72,  0x5f,  0x00,  0x00,  0x00,  0x00, 
+ 0x17,  0x00,  0x00,  0x00,  0x07,  0x00,  0x00,  0x00,  0x01,  0x00,  0x01,  0x00,  0x09,  0x00,  0x00,  0x00, 
+ 0x65,  0x6e,  0x61,  0x62,  0x6c,  0x65,  0x64,  0x5f,  0x00,  0x00,  0x00,  0x00,  0x1b,  0x00,  0x00,  0x00, 
+ 0x08,  0x00,  0x00,  0x00,  0x01,  0x00,  0x02,  0x00,  0x0d,  0x00,  0x00,  0x00,  0x6a,  0x6f,  0x69,  0x6e, 
+ 0x74,  0x5f,  0x65,  0x72,  0x72,  0x6f,  0x72,  0x5f,  0x00,  0x00,  0x00,  0x00,  0x1d,  0x00,  0x00,  0x00, 
+ 0x09,  0x00,  0x00,  0x00,  0x01,  0x00,  0x70,  0x00,  0x0f,  0x00,  0x00,  0x00,  0x65,  0x72,  0x72,  0x6f, 
+ 0x72,  0x5f,  0x6d,  0x65,  0x73,  0x73,  0x61,  0x67,  0x65,  0x5f,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00, 
+ 0x22,  0x00,  0x00,  0x00,  0x01,  0x00,  0x00,  0x00,  0xf2,  0x7f,  0x16,  0x35,  0x86,  0x41,  0xed,  0xc2, 
+ 0x34,  0x51,  0xc5,  0xfb,  0xf4,  0xa3,  0xbd,  0xf1,  0x53,  0xe4,  0x3b,  0x51,  0xbe,  0x58,  0x97,  0xec, 
+ 0x25,  0xb2,  0xdc,  0x98,  0xfe,  0xa7, };
   return blob;
 }
-template<> inline const uint8_t * TopicTraits<::robot_msgs::msg::dds_::JointState_>::type_info_blob() {
+template<> inline const uint8_t * TopicTraits<::robot_interfaces::msg::dds_::JointState_>::type_info_blob() {
   static const uint8_t blob[] = {
  0x60,  0x00,  0x00,  0x00,  0x01,  0x10,  0x00,  0x40,  0x28,  0x00,  0x00,  0x00,  0x24,  0x00,  0x00,  0x00, 
- 0x14,  0x00,  0x00,  0x00,  0xf1,  0xb7,  0xb3,  0xa6,  0xde,  0xc7,  0x29,  0x3d,  0xae,  0xbb,  0x63,  0xdd, 
- 0xc9,  0xee,  0x76,  0x00,  0xa7,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x04,  0x00,  0x00,  0x00, 
+ 0x14,  0x00,  0x00,  0x00,  0xf1,  0x53,  0xe4,  0x3b,  0x51,  0xbe,  0x58,  0x97,  0xec,  0x25,  0xb2,  0xdc, 
+ 0x98,  0xfe,  0xa7,  0x00,  0xb8,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x04,  0x00,  0x00,  0x00, 
  0x00,  0x00,  0x00,  0x00,  0x02,  0x10,  0x00,  0x40,  0x28,  0x00,  0x00,  0x00,  0x24,  0x00,  0x00,  0x00, 
- 0x14,  0x00,  0x00,  0x00,  0xf2,  0x94,  0x8a,  0x50,  0x45,  0x3c,  0x57,  0x4f,  0x21,  0xab,  0x87,  0x59, 
- 0xbc,  0xeb,  0xba,  0x00,  0x4f,  0x01,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x04,  0x00,  0x00,  0x00, 
+ 0x14,  0x00,  0x00,  0x00,  0xf2,  0x7f,  0x16,  0x35,  0x86,  0x41,  0xed,  0xc2,  0x34,  0x51,  0xc5,  0xfb, 
+ 0xf4,  0xa3,  0xbd,  0x00,  0x75,  0x01,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x04,  0x00,  0x00,  0x00, 
  0x00,  0x00,  0x00,  0x00, };
   return blob;
 }
@@ -208,18 +225,18 @@ namespace dds {
 namespace topic {
 
 template <>
-struct topic_type_name<::robot_msgs::msg::dds_::JointState_>
+struct topic_type_name<::robot_interfaces::msg::dds_::JointState_>
 {
     static std::string value()
     {
-      return org::eclipse::cyclonedds::topic::TopicTraits<::robot_msgs::msg::dds_::JointState_>::getTypeName();
+      return org::eclipse::cyclonedds::topic::TopicTraits<::robot_interfaces::msg::dds_::JointState_>::getTypeName();
     }
 };
 
 }
 }
 
-REGISTER_TOPIC_TYPE(::robot_msgs::msg::dds_::JointState_)
+REGISTER_TOPIC_TYPE(::robot_interfaces::msg::dds_::JointState_)
 
 namespace org{
 namespace eclipse{
@@ -228,10 +245,10 @@ namespace core{
 namespace cdr{
 
 template<>
-propvec &get_type_props<::robot_msgs::msg::dds_::JointState_>();
+propvec &get_type_props<::robot_interfaces::msg::dds_::JointState_>();
 
 template<typename T, std::enable_if_t<std::is_base_of<cdr_stream, T>::value, bool> = true >
-bool write(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, entity_properties_t *props) {
+bool write(T& streamer, const ::robot_interfaces::msg::dds_::JointState_& instance, entity_properties_t *props) {
   (void)instance;
   if (!streamer.start_struct(*props))
     return false;
@@ -241,7 +258,7 @@ bool write(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, en
       case 0:
       if (!streamer.start_member(*prop))
         return false;
-      if (!write(streamer, instance.model_id_()))
+      if (!write_string(streamer, instance.joint_name_(), 0))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -249,7 +266,7 @@ bool write(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, en
       case 1:
       if (!streamer.start_member(*prop))
         return false;
-      if (!write(streamer, instance.motor_id_()))
+      if (!write(streamer, instance.position_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -257,7 +274,7 @@ bool write(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, en
       case 2:
       if (!streamer.start_member(*prop))
         return false;
-      if (!write(streamer, instance.joint_pos_()))
+      if (!write(streamer, instance.velocity_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -265,7 +282,7 @@ bool write(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, en
       case 3:
       if (!streamer.start_member(*prop))
         return false;
-      if (!write(streamer, instance.joint_vel_()))
+      if (!write(streamer, instance.effort_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -273,7 +290,7 @@ bool write(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, en
       case 4:
       if (!streamer.start_member(*prop))
         return false;
-      if (!write(streamer, instance.joint_torque_()))
+      if (!write(streamer, instance.motor_temp_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -281,7 +298,7 @@ bool write(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, en
       case 5:
       if (!streamer.start_member(*prop))
         return false;
-      if (!write(streamer, instance.temp_motor_()))
+      if (!write(streamer, instance.mos_temp_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -289,7 +306,7 @@ bool write(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, en
       case 6:
       if (!streamer.start_member(*prop))
         return false;
-      if (!write(streamer, instance.temp_mos_()))
+      if (!write(streamer, instance.motor_error_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -297,7 +314,7 @@ bool write(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, en
       case 7:
       if (!streamer.start_member(*prop))
         return false;
-      if (!write(streamer, instance.error_()))
+      if (!write(streamer, instance.enabled_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -310,6 +327,14 @@ bool write(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, en
       if (!streamer.finish_member(*prop))
         return false;
       break;
+      case 9:
+      if (!streamer.start_member(*prop))
+        return false;
+      if (!write_string(streamer, instance.error_message_(), 0))
+        return false;
+      if (!streamer.finish_member(*prop))
+        return false;
+      break;
     }
     prop = streamer.next_entity(prop);
   }
@@ -317,14 +342,14 @@ bool write(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, en
 }
 
 template<typename S, std::enable_if_t<std::is_base_of<cdr_stream, S>::value, bool> = true >
-bool write(S& str, const ::robot_msgs::msg::dds_::JointState_& instance, bool as_key) {
-  auto &props = get_type_props<::robot_msgs::msg::dds_::JointState_>();
+bool write(S& str, const ::robot_interfaces::msg::dds_::JointState_& instance, bool as_key) {
+  auto &props = get_type_props<::robot_interfaces::msg::dds_::JointState_>();
   str.set_mode(cdr_stream::stream_mode::write, as_key);
   return write(str, instance, props.data()); 
 }
 
 template<typename T, std::enable_if_t<std::is_base_of<cdr_stream, T>::value, bool> = true >
-bool read(T& streamer, ::robot_msgs::msg::dds_::JointState_& instance, entity_properties_t *props) {
+bool read(T& streamer, ::robot_interfaces::msg::dds_::JointState_& instance, entity_properties_t *props) {
   (void)instance;
   if (!streamer.start_struct(*props))
     return false;
@@ -334,7 +359,7 @@ bool read(T& streamer, ::robot_msgs::msg::dds_::JointState_& instance, entity_pr
       case 0:
       if (!streamer.start_member(*prop))
         return false;
-      if (!read(streamer, instance.model_id_()))
+      if (!read_string(streamer, instance.joint_name_(), 0))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -342,7 +367,7 @@ bool read(T& streamer, ::robot_msgs::msg::dds_::JointState_& instance, entity_pr
       case 1:
       if (!streamer.start_member(*prop))
         return false;
-      if (!read(streamer, instance.motor_id_()))
+      if (!read(streamer, instance.position_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -350,7 +375,7 @@ bool read(T& streamer, ::robot_msgs::msg::dds_::JointState_& instance, entity_pr
       case 2:
       if (!streamer.start_member(*prop))
         return false;
-      if (!read(streamer, instance.joint_pos_()))
+      if (!read(streamer, instance.velocity_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -358,7 +383,7 @@ bool read(T& streamer, ::robot_msgs::msg::dds_::JointState_& instance, entity_pr
       case 3:
       if (!streamer.start_member(*prop))
         return false;
-      if (!read(streamer, instance.joint_vel_()))
+      if (!read(streamer, instance.effort_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -366,7 +391,7 @@ bool read(T& streamer, ::robot_msgs::msg::dds_::JointState_& instance, entity_pr
       case 4:
       if (!streamer.start_member(*prop))
         return false;
-      if (!read(streamer, instance.joint_torque_()))
+      if (!read(streamer, instance.motor_temp_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -374,7 +399,7 @@ bool read(T& streamer, ::robot_msgs::msg::dds_::JointState_& instance, entity_pr
       case 5:
       if (!streamer.start_member(*prop))
         return false;
-      if (!read(streamer, instance.temp_motor_()))
+      if (!read(streamer, instance.mos_temp_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -382,7 +407,7 @@ bool read(T& streamer, ::robot_msgs::msg::dds_::JointState_& instance, entity_pr
       case 6:
       if (!streamer.start_member(*prop))
         return false;
-      if (!read(streamer, instance.temp_mos_()))
+      if (!read(streamer, instance.motor_error_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -390,7 +415,7 @@ bool read(T& streamer, ::robot_msgs::msg::dds_::JointState_& instance, entity_pr
       case 7:
       if (!streamer.start_member(*prop))
         return false;
-      if (!read(streamer, instance.error_()))
+      if (!read(streamer, instance.enabled_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -403,6 +428,14 @@ bool read(T& streamer, ::robot_msgs::msg::dds_::JointState_& instance, entity_pr
       if (!streamer.finish_member(*prop))
         return false;
       break;
+      case 9:
+      if (!streamer.start_member(*prop))
+        return false;
+      if (!read_string(streamer, instance.error_message_(), 0))
+        return false;
+      if (!streamer.finish_member(*prop))
+        return false;
+      break;
     }
     prop = streamer.next_entity(prop);
   }
@@ -410,14 +443,14 @@ bool read(T& streamer, ::robot_msgs::msg::dds_::JointState_& instance, entity_pr
 }
 
 template<typename S, std::enable_if_t<std::is_base_of<cdr_stream, S>::value, bool> = true >
-bool read(S& str, ::robot_msgs::msg::dds_::JointState_& instance, bool as_key) {
-  auto &props = get_type_props<::robot_msgs::msg::dds_::JointState_>();
+bool read(S& str, ::robot_interfaces::msg::dds_::JointState_& instance, bool as_key) {
+  auto &props = get_type_props<::robot_interfaces::msg::dds_::JointState_>();
   str.set_mode(cdr_stream::stream_mode::read, as_key);
   return read(str, instance, props.data()); 
 }
 
 template<typename T, std::enable_if_t<std::is_base_of<cdr_stream, T>::value, bool> = true >
-bool move(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, entity_properties_t *props) {
+bool move(T& streamer, const ::robot_interfaces::msg::dds_::JointState_& instance, entity_properties_t *props) {
   (void)instance;
   if (!streamer.start_struct(*props))
     return false;
@@ -427,7 +460,7 @@ bool move(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, ent
       case 0:
       if (!streamer.start_member(*prop))
         return false;
-      if (!move(streamer, instance.model_id_()))
+      if (!move_string(streamer, instance.joint_name_(), 0))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -435,7 +468,7 @@ bool move(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, ent
       case 1:
       if (!streamer.start_member(*prop))
         return false;
-      if (!move(streamer, instance.motor_id_()))
+      if (!move(streamer, instance.position_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -443,7 +476,7 @@ bool move(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, ent
       case 2:
       if (!streamer.start_member(*prop))
         return false;
-      if (!move(streamer, instance.joint_pos_()))
+      if (!move(streamer, instance.velocity_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -451,7 +484,7 @@ bool move(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, ent
       case 3:
       if (!streamer.start_member(*prop))
         return false;
-      if (!move(streamer, instance.joint_vel_()))
+      if (!move(streamer, instance.effort_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -459,7 +492,7 @@ bool move(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, ent
       case 4:
       if (!streamer.start_member(*prop))
         return false;
-      if (!move(streamer, instance.joint_torque_()))
+      if (!move(streamer, instance.motor_temp_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -467,7 +500,7 @@ bool move(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, ent
       case 5:
       if (!streamer.start_member(*prop))
         return false;
-      if (!move(streamer, instance.temp_motor_()))
+      if (!move(streamer, instance.mos_temp_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -475,7 +508,7 @@ bool move(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, ent
       case 6:
       if (!streamer.start_member(*prop))
         return false;
-      if (!move(streamer, instance.temp_mos_()))
+      if (!move(streamer, instance.motor_error_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -483,7 +516,7 @@ bool move(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, ent
       case 7:
       if (!streamer.start_member(*prop))
         return false;
-      if (!move(streamer, instance.error_()))
+      if (!move(streamer, instance.enabled_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -496,6 +529,14 @@ bool move(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, ent
       if (!streamer.finish_member(*prop))
         return false;
       break;
+      case 9:
+      if (!streamer.start_member(*prop))
+        return false;
+      if (!move_string(streamer, instance.error_message_(), 0))
+        return false;
+      if (!streamer.finish_member(*prop))
+        return false;
+      break;
     }
     prop = streamer.next_entity(prop);
   }
@@ -503,14 +544,14 @@ bool move(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, ent
 }
 
 template<typename S, std::enable_if_t<std::is_base_of<cdr_stream, S>::value, bool> = true >
-bool move(S& str, const ::robot_msgs::msg::dds_::JointState_& instance, bool as_key) {
-  auto &props = get_type_props<::robot_msgs::msg::dds_::JointState_>();
+bool move(S& str, const ::robot_interfaces::msg::dds_::JointState_& instance, bool as_key) {
+  auto &props = get_type_props<::robot_interfaces::msg::dds_::JointState_>();
   str.set_mode(cdr_stream::stream_mode::move, as_key);
   return move(str, instance, props.data()); 
 }
 
 template<typename T, std::enable_if_t<std::is_base_of<cdr_stream, T>::value, bool> = true >
-bool max(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, entity_properties_t *props) {
+bool max(T& streamer, const ::robot_interfaces::msg::dds_::JointState_& instance, entity_properties_t *props) {
   (void)instance;
   if (!streamer.start_struct(*props))
     return false;
@@ -520,7 +561,7 @@ bool max(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, enti
       case 0:
       if (!streamer.start_member(*prop))
         return false;
-      if (!max(streamer, instance.model_id_()))
+      if (!max_string(streamer, instance.joint_name_(), 0))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -528,7 +569,7 @@ bool max(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, enti
       case 1:
       if (!streamer.start_member(*prop))
         return false;
-      if (!max(streamer, instance.motor_id_()))
+      if (!max(streamer, instance.position_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -536,7 +577,7 @@ bool max(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, enti
       case 2:
       if (!streamer.start_member(*prop))
         return false;
-      if (!max(streamer, instance.joint_pos_()))
+      if (!max(streamer, instance.velocity_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -544,7 +585,7 @@ bool max(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, enti
       case 3:
       if (!streamer.start_member(*prop))
         return false;
-      if (!max(streamer, instance.joint_vel_()))
+      if (!max(streamer, instance.effort_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -552,7 +593,7 @@ bool max(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, enti
       case 4:
       if (!streamer.start_member(*prop))
         return false;
-      if (!max(streamer, instance.joint_torque_()))
+      if (!max(streamer, instance.motor_temp_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -560,7 +601,7 @@ bool max(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, enti
       case 5:
       if (!streamer.start_member(*prop))
         return false;
-      if (!max(streamer, instance.temp_motor_()))
+      if (!max(streamer, instance.mos_temp_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -568,7 +609,7 @@ bool max(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, enti
       case 6:
       if (!streamer.start_member(*prop))
         return false;
-      if (!max(streamer, instance.temp_mos_()))
+      if (!max(streamer, instance.motor_error_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -576,7 +617,7 @@ bool max(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, enti
       case 7:
       if (!streamer.start_member(*prop))
         return false;
-      if (!max(streamer, instance.error_()))
+      if (!max(streamer, instance.enabled_()))
         return false;
       if (!streamer.finish_member(*prop))
         return false;
@@ -589,6 +630,14 @@ bool max(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, enti
       if (!streamer.finish_member(*prop))
         return false;
       break;
+      case 9:
+      if (!streamer.start_member(*prop))
+        return false;
+      if (!max_string(streamer, instance.error_message_(), 0))
+        return false;
+      if (!streamer.finish_member(*prop))
+        return false;
+      break;
     }
     prop = streamer.next_entity(prop);
   }
@@ -596,8 +645,8 @@ bool max(T& streamer, const ::robot_msgs::msg::dds_::JointState_& instance, enti
 }
 
 template<typename S, std::enable_if_t<std::is_base_of<cdr_stream, S>::value, bool> = true >
-bool max(S& str, const ::robot_msgs::msg::dds_::JointState_& instance, bool as_key) {
-  auto &props = get_type_props<::robot_msgs::msg::dds_::JointState_>();
+bool max(S& str, const ::robot_interfaces::msg::dds_::JointState_& instance, bool as_key) {
+  auto &props = get_type_props<::robot_interfaces::msg::dds_::JointState_>();
   str.set_mode(cdr_stream::stream_mode::max, as_key);
   return max(str, instance, props.data()); 
 }

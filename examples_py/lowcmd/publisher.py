@@ -1,28 +1,23 @@
-import os
-import sys
+# Resolve the packaged SDK when this example is run directly.
+import pathlib as _sdk_pathlib
+import sys as _sdk_sys
+_sdk_sys.path.insert(0, str(_sdk_pathlib.Path(__file__).resolve().parents[2] / "libs" / "python"))
 
-sys.path.insert(
-    0,
-    os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-        "libs",
-        "python",
-    ),
-)
+import time
 
 import zv_robot_sdk_python as zv
-import time
 
 print(f"zv_robot_sdk_python version: {zv.__version__}")
 
 LOW_CMD_TOPIC = "rt/all_joint_cmd"
 
 zv.ChannelFactory.Instance().Init(0)
-publisher = zv.ChannelPublisher_AllJointCmd_(LOW_CMD_TOPIC)
+publisher = zv.ChannelPublisher_JointCommands_(LOW_CMD_TOPIC)
 publisher.InitChannel()
 
+sequence = 0
 while True:
-    msg = zv.AllJointCmd_()
+    msg = zv.JointCommands_()
 
     joint_pos = [
         -0.07279034703969955,
@@ -104,16 +99,24 @@ while True:
         5.0,
     ]
 
-    cmds = msg.joint_cmds_
+    msg.sequence_ = sequence
+    sequence += 1
+    msg.source_ = "zv_robot_sdk_example"
+    msg.type_ = zv.JointCommands_Constants.TYPE_RUN_
+
+    cmds = msg.commands_
     cmds.clear()
-    for i in range(23):
-        cmds.append(zv.JointCmd_())
+    for i in range(len(joint_pos)):
+        cmds.append(zv.JointCommand_())
         c = cmds[-1]
-        c.joint_pos_ = joint_pos[i]
-        c.joint_vel_ = 0
-        c.joint_torque_ = 0
-        c.kp_ = kp[i]
-        c.kd_ = kd[i]
+        # 根据实际机器人配置替换为对应的关节名称。
+        c.joint_name_ = "joint_" + str(i)
+        c.position_ = float(joint_pos[i])
+        c.velocity_ = 0.0
+        c.effort_ = 0.0
+        c.kp_ = float(kp[i])
+        c.kd_ = float(kd[i])
+        c.enable_ = True
 
     publisher.Write(msg)
 

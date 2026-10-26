@@ -1,9 +1,9 @@
 #pragma once
 
-#include <memory>
 #include <functional>
+#include <memory>
 
-using DdsMessageHandler = std::function<void(const void*)>;
+using DdsMessageHandler = std::function<void(const void *)>;
 
 namespace zv::common
 {
@@ -11,20 +11,20 @@ namespace zv::common
 class DdsReaderCallback
 {
 public:
-  DdsReaderCallback();
-  explicit DdsReaderCallback(const DdsMessageHandler& handler) : handler_(handler){};
-  DdsReaderCallback(const DdsReaderCallback& cb);
-  DdsReaderCallback& operator=(const DdsReaderCallback& cb);
+    DdsReaderCallback();
+    explicit DdsReaderCallback(const DdsMessageHandler & handler) : handler_(handler){};
+    DdsReaderCallback(const DdsReaderCallback & cb);
+    DdsReaderCallback & operator=(const DdsReaderCallback & cb);
 
-  ~DdsReaderCallback();
+    ~DdsReaderCallback();
 
-  bool HasMessageHandler() const;
-  void OnDataAvailable(const void* data);
+    bool HasMessageHandler() const;
+    void OnDataAvailable(const void * data);
 
 private:
-  DdsMessageHandler handler_;
+    DdsMessageHandler handler_;
 };
 
 using DdsReaderCallbackPtr = std::shared_ptr<DdsReaderCallback>;
 
-}
+}  // namespace zv::common

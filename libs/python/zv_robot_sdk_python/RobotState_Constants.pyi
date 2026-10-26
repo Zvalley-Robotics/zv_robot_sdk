@@ -1,12 +1,15 @@
 from __future__ import annotations
-__all__: list[str] = ['CHECK_MOTORS_', 'CUSTOM_MODEL_', 'CUSTOM_RULE_', 'DO_READY_', 'ERROR_', 'INITIALIZING_', 'MODEL_', 'READY_', 'RULE_', 'STOP_']
-CHECK_MOTORS_: int = 3
-CUSTOM_MODEL_: int = 8
-CUSTOM_RULE_: int = 9
-DO_READY_: int = 4
-ERROR_: int = 1
-INITIALIZING_: int = 0
-MODEL_: int = 6
-READY_: int = 5
-RULE_: int = 7
-STOP_: int = 2
+__all__: list[str] = ['STATE_BOOTING_', 'STATE_DAMP_', 'STATE_DO_READY_', 'STATE_FAULT_', 'STATE_IDLE_', 'STATE_INIT_', 'STATE_READY_', 'STATE_RL_ACTIVE_', 'STATE_RL_STANDBY_', 'STATE_RULE_ACTIVE_', 'STATE_RULE_STANDBY_', 'STATE_SHUTDOWN_', 'STATE_TRANSITIONING_']
+STATE_BOOTING_: int = 0
+STATE_DAMP_: int = 11
+STATE_DO_READY_: int = 3
+STATE_FAULT_: int = 10
+STATE_IDLE_: int = 2
+STATE_INIT_: int = 1
+STATE_READY_: int = 4
+STATE_RL_ACTIVE_: int = 6
+STATE_RL_STANDBY_: int = 5
+STATE_RULE_ACTIVE_: int = 8
+STATE_RULE_STANDBY_: int = 7
+STATE_SHUTDOWN_: int = 12
+STATE_TRANSITIONING_: int = 9
