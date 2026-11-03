@@ -1,8 +1,10 @@
 #include <chrono>
+#include <csignal>
 #include <iostream>
 #include <thread>
 #include <zv/robot/channel/channel_subscriber.hpp>
 
+#include "../dds_options.hpp"
 #include "NavAll_.hpp"
 
 // 订阅的话题名（IMU / 组合导航融合数据）
@@ -10,6 +12,12 @@ static const std::string NAV_ALL_TOPIC = "rt/robot/imu/nav_all";
 
 using namespace zv::robot;
 using namespace zv::common;
+
+namespace
+{
+volatile std::sig_atomic_t running = 1;
+void Stop(int) { running = 0; }
+}  // namespace
 
 // 1. 消息回调函数，当有 NavAll_ 消息到达指定话题时，SDK 自动调用该函数
 void Handler(const void * msg)
@@ -52,21 +60,29 @@ void Handler(const void * msg)
     std::cout << "  pressure: " << pressure.val_() << std::endl;
 }
 
-int main()
+int main(int argc, const char * const argv[])
 {
+    const auto options = example::ParseDdsArguments(argc, argv);
+    if (options.help) {
+        std::cout << "Options: [--use_config] [--network_interface=<iface>] " << std::endl;
+        return 0;
+    }
     // 2. 初始化 Channel 工厂，管理底层通信资源
-    ChannelFactory::Instance()->Init(0);
+    example::InitDds(options.network_interface, options.use_config);
 
     // 3. 创建 Subscriber 对象，绑定话题和消息类型
     ChannelSubscriber<yesense_interface::msg::dds_::NavAll_> subscriber(NAV_ALL_TOPIC);
 
     // 4. 初始化通信通道并注册回调函数
-    subscriber.InitChannel(Handler);
+    subscriber.InitChannel(Handler, 10, true);
 
     // 5. 保持进程运行，Subscriber 在内部线程接收消息并调用 Handler
-    while (true) {
-        std::this_thread::sleep_for(std::chrono::seconds(10));
+    std::signal(SIGINT, Stop);
+    std::signal(SIGTERM, Stop);
+    while (running) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+    subscriber.CloseChannel();
 
     return 0;
 }

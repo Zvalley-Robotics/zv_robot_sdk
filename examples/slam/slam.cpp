@@ -10,6 +10,8 @@
 #include <zv/robot/slam/slam_client.hpp>
 #include <zv/third_party/nlohmann_json/json.hpp>
 
+#include "../dds_options.hpp"
+
 namespace fs = std::filesystem;
 
 using namespace zv::robot;
@@ -109,7 +111,7 @@ void handleSimpleActionCommand(SlamClient & client, const std::string & cmd_str,
 int main(int argc, char const * argv[])
 {
     std::map<std::string, std::string> args = {
-        {"network_interface", "lo"}
+        {"network_interface", ""}
     };
 
     std::map<std::string, std::string> values;
@@ -140,7 +142,7 @@ int main(int argc, char const * argv[])
     }
 
     if (argc == 1 || args.count("help")) {
-        std::cout << "Usage: slam [--network_interface=<iface>] <command[=args]>\n"
+        std::cout << "Usage: slam [--network_interface=<iface>] [--use_config] <command[=args]>\n"
                      "\n"
                      "建图命令:\n"
                      "  --start_mapping=<scene_id> <type>   开启建图 (type: indoor|outdoor)\n"
@@ -150,16 +152,18 @@ int main(int argc, char const * argv[])
                      "  --preview_map=<scene_id>             预览指定地图\n"
                      "  --delete_map=<scene_id>              删除指定地图\n"
                      "  --download_maps[=<local_dir>]        下载所有地图到本地目录（默认 .）\n"
+                     "  --get_map=\"<scene/file> <local_path>\" 下载单个地图文件\n"
                      "\n"
                      "导航命令:\n"
                      "  --init_pose=<scene_id> <auto> [x y z r p yaw]   初始化位姿并启动定位\n"
                      "  --start_nav=<relative> <x y z r p yaw>          开始导航到目标位姿\n"
-                     "  --get_state                          查询当前状态（空闲/建图/就绪/导航中）\n"
+                     "  位姿也支持 x y z q_x q_y q_z q_w；未指定网卡时自动选择。\n"
+                     "  --get_state                          查询当前状态及场景 ID\n"
                      "  --get_pose                           查询当前位姿\n"
+                     "  --get_nav_state                      查询导航目标、用时与剩余距离\n"
                      "  --pause_nav                          暂停导航\n"
                      "  --resume_nav                         恢复导航\n"
                      "  --cancel_nav                         取消导航\n"
-                     "  --restart_odom[=true|false]           重启里程计（默认重定位）\n"
                      "  --shutdown                           结束定位与导航\n"
                      "\n"
                      "示例:\n"
@@ -171,7 +175,7 @@ int main(int argc, char const * argv[])
         return 0;
     }
 
-    zv::robot::ChannelFactory::Instance()->Init(0);
+    example::InitDds(args.at("network_interface"), args.count("use_config") != 0);
 
     SlamClient slam_client;
     slam_client.Init();
@@ -181,7 +185,7 @@ int main(int argc, char const * argv[])
     for (const auto & arg_pair : args) {
         std::cout << "Processing command: [" << arg_pair.first << "] with param: [" << arg_pair.second << "] ..."
                   << std::endl;
-        if (arg_pair.first == "network_interface") {
+        if (arg_pair.first == "network_interface" || arg_pair.first == "use_config") {
             continue;
         }
 
@@ -233,12 +237,37 @@ int main(int argc, char const * argv[])
             printCmdResult(cmd, ret, data);
         } else if (cmd == "get_state") {
             std::string nav_state;
-            int32_t ret = slam_client.GetState(nav_state);
+            std::string scene_id;
+            int32_t ret = slam_client.GetState(nav_state, scene_id);
             if (ret == 0 || ret == 1) {
                 std::cout << "Nav State: " << nav_state << std::endl;
+                std::cout << "Scene ID: " << (scene_id.empty() ? nlohmann::json(nullptr) : nlohmann::json(scene_id)).dump()
+                          << std::endl;
             } else {
                 std::cerr << "Command '" << cmd << "' execution failed, error code: " << ret << std::endl;
             }
+        } else if (cmd == "get_nav_state") {
+            std::string progress;
+            int32_t ret = slam_client.GetNavState(progress);
+            if (ret == 0 || ret == 1) {
+                std::cout << "Nav Progress: " << progress << std::endl;
+            } else {
+                printCmdResult(cmd, ret);
+            }
+        } else if (cmd == "get_map") {
+            const auto parts = stringToStringVector(param);
+            if (parts.size() != 2) {
+                std::cerr << "Invalid param size for get_map" << std::endl;
+                return 2;
+            }
+            FileInfo file;
+            file.name = parts[0];
+            const auto ret = slam_client.GetMap(file, parts[1]);
+            if (ret != 0) {
+                printCmdResult(cmd, ret);
+                return 2;
+            }
+            std::cout << "Map file downloaded" << std::endl;
         } else if (cmd == "start_nav") {
             std::vector<std::string> param_vec = stringToStringVector(param);
             bool relative = true;
@@ -258,13 +287,6 @@ int main(int argc, char const * argv[])
             handleSimpleActionCommand(slam_client, cmd, [&](std::string & d) { return slam_client.PauseNav(d); });
         } else if (cmd == "resume_nav") {
             handleSimpleActionCommand(slam_client, cmd, [&](std::string & d) { return slam_client.ResumeNav(d); });
-        } else if (cmd == "restart_odom") {
-            if (!param.empty() && param != "true" && param != "false") {
-                std::cerr << "restart_odom expects true or false" << std::endl;
-                continue;
-            }
-            std::string data;
-            printCmdResult(cmd, slam_client.RestartOdom("", param != "false", data), data);
         } else if (cmd == "query_map") {
             std::vector<zv::robot::FileInfo> files;
             int32_t ret = slam_client.QueryMap(files);

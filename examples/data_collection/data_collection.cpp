@@ -10,6 +10,8 @@
 #include <zv/robot/data_collection/data_collection_client.hpp>
 #include <zv/robot/mcap/mcap_reader.hpp>
 
+#include "../dds_options.hpp"
+
 namespace fs = std::filesystem;
 
 namespace
@@ -18,11 +20,11 @@ namespace
 void printUsage()
 {
     std::cout << "Usage:\n"
-              << "  dataCollection [--network_interface=<iface>] --start\n"
-              << "  dataCollection [--network_interface=<iface>] "
+              << "  dataCollection [--network_interface=<iface>] [--use_config] --start\n"
+              << "  dataCollection [--network_interface=<iface>] [--use_config] "
                  "--stop[=<local_dir>]\n"
-              << "  dataCollection [--network_interface=<iface>] --get_topics\n"
-              << "  dataCollection [--network_interface=<iface>] "
+              << "  dataCollection [--network_interface=<iface>] [--use_config] --get_topics\n"
+              << "  dataCollection [--network_interface=<iface>] [--use_config] "
                  "--set_topics=<t1,t2,...>\n"
               << "                 [--mode=replace|add|remove] [--persist]\n"
               << "  dataCollection --read=<local_mcap>\n"
@@ -71,9 +73,9 @@ bool parseArguments(int argc, const char * const argv[], std::map<std::string, s
         const size_t separator = argument.find('=');
         const std::string key = argument.substr(2, separator == std::string::npos ? std::string::npos : separator - 2);
         const std::string value = separator == std::string::npos ? "" : argument.substr(separator + 1);
-        if (key != "network_interface" && key != "start" && key != "stop" && key != "get_topics" &&
-            key != "set_topics" && key != "mode" && key != "persist" && key != "help" && key != "read" &&
-            key != "read_after_download") {
+        if (key != "use_config" && key != "network_interface" && key != "start" && key != "stop" &&
+            key != "get_topics" && key != "set_topics" && key != "mode" && key != "persist" && key != "help" &&
+            key != "read" && key != "read_after_download") {
             std::cerr << "Unknown option: --" << key << std::endl;
             return false;
         }
@@ -229,7 +231,7 @@ int main(int argc, const char * const argv[])
     }
     if (read) return ReadMcapFile(arguments.at("read"), std::cout, std::cerr);
 
-    zv::robot::ChannelFactory::Instance()->Init(0, arguments.at("network_interface"));
+    example::InitDds(arguments.at("network_interface"), arguments.count("use_config") != 0);
 
     zv::robot::DataCollectionClient client;
     client.Init();

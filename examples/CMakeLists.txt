@@ -112,6 +112,7 @@ add_sdk_example(teleop teleop/teleop.cpp)
 add_sdk_example(imuNavSubscriber imu_nav/subscriber.cpp)
 add_sdk_example(t3StateMonitor t3/state_monitor.cpp)
 add_sdk_example(t3ActionDemo t3/action_demo.cpp)
+add_sdk_example(diagnosticsSubscriber ops/subscriber.cpp)
 
 set(ZV_ROBOT_SDK_EXAMPLE_TARGETS
     helloworldPublisher
@@ -132,6 +133,7 @@ set(ZV_ROBOT_SDK_EXAMPLE_TARGETS
     imuNavSubscriber
     t3StateMonitor
     t3ActionDemo
+    diagnosticsSubscriber
 )
 
 if(NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
@@ -141,4 +143,5 @@ if(NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     endforeach()
     install(TARGETS ${ZV_ROBOT_SDK_EXAMPLE_TARGETS}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/zv_robot_sdk/examples)
+    install(DIRECTORY config DESTINATION ${CMAKE_INSTALL_BINDIR}/zv_robot_sdk/examples)
 endif()

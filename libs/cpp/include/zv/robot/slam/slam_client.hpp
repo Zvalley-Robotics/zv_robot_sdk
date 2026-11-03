@@ -119,7 +119,6 @@ public:
         ZV_ROBOT_CLIENT_REG_API_NO_PROI(ROBOT_API_ID_SLAM_DELETE_MAP);
         ZV_ROBOT_CLIENT_REG_API_NO_PROI(ROBOT_API_ID_SLAM_GET_NAV_STATE);
         ZV_ROBOT_CLIENT_REG_API_NO_PROI(ROBOT_API_ID_SLAM_GET_STATE);
-        ZV_ROBOT_CLIENT_REG_API_NO_PROI(ROBOT_API_ID_SLAM_RESTART_ODOM);
         ZV_ROBOT_CLIENT_REG_API_NO_PROI(ROBOT_API_ID_SLAM_TERMINATE_MAPPING);
 
         auth_client_.Init();
@@ -149,18 +148,6 @@ public:
         return Call(ROBOT_API_ID_SLAM_TERMINATE_MAPPING,
                     nlohmann::json{
                         {"scene_id", scene_id}
-        }
-                        .dump(),
-                    data);
-    }
-
-    // Restart odometry; the backend owns recovery and optional relocalization.
-    int32_t RestartOdom(const std::string & scene_id, bool relocalize, std::string & data)
-    {
-        return Call(ROBOT_API_ID_SLAM_RESTART_ODOM,
-                    nlohmann::json{
-                        {"scene_id",   scene_id  },
-                        {"relocalize", relocalize}
         }
                         .dump(),
                     data);
@@ -352,6 +339,27 @@ public:
         int32_t ret = Call(ROBOT_API_ID_SLAM_GET_STATE, "", data);
         if (ret == 0 || ret == 1) state = ParseJsonData(data);
         return ret;
+    }
+
+    // 保留 1815 响应中的场景 ID；未初始化时为空，建图时为建图场景。
+    int32_t GetState(std::string & state, std::string & scene_id)
+    {
+        state.clear();
+        scene_id.clear();
+        std::string data;
+        const int32_t ret = Call(ROBOT_API_ID_SLAM_GET_STATE, "", data);
+        if (ret != 0 && ret != 1) return ret;
+        try {
+            const auto payload = nlohmann::json::parse(data);
+            if (!payload.is_object() || !payload.contains("data") || !payload["data"].is_string() ||
+                !payload.contains("scene_id") || (!payload["scene_id"].is_null() && !payload["scene_id"].is_string()))
+                return RPC_ERR_CLIENT_API_DATA;
+            state = payload["data"].get<std::string>();
+            if (payload["scene_id"].is_string()) scene_id = payload["scene_id"].get<std::string>();
+            return ret;
+        } catch (const nlohmann::json::exception &) {
+            return RPC_ERR_CLIENT_API_DATA;
+        }
     }
 
     // 坐标点导航

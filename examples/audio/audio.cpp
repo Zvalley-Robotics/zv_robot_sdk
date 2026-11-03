@@ -14,13 +14,14 @@
 #include <zv/robot/channel/channel_factory.hpp>
 #include <zv/robot/internal/internal.hpp>
 
+#include "../dds_options.hpp"
+
 namespace
 {
 
 std::map<std::string, std::string> ParseArgs(int argc, const char * const argv[])
 {
     std::map<std::string, std::string> args = {
-        {"domain_id",         "0"  },
         {"network_interface", ""   },
         {"timeout",           "120"},
         {"output_name",       ""   },
@@ -53,7 +54,7 @@ void PrintUsage()
 {
     std::cout << "Usage: audio [connection options] <command[=args]>\n\n"
               << "连接参数:\n"
-              << "  --domain_id=<id>                 DDS domain，默认 0\n"
+              << "  --use_config                        使用 examples/config/dds.json\n"
               << "  --network_interface=<iface>      DDS 网卡，默认自动选择\n"
               << "  --timeout=<seconds>              同步调用超时，默认 120 秒\n\n"
               << "命令:\n"
@@ -168,12 +169,10 @@ int main(int argc, const char * const argv[])
         return 0;
     }
 
-    int32_t domain_id = 0;
     float timeout = 0.0F;
     int32_t speaker_id = -1;
     double duration = 10.0;
     try {
-        domain_id = std::stoi(args.at("domain_id"));
         timeout = std::stof(args.at("timeout"));
         speaker_id = std::stoi(args.at("speaker_id"));
         duration = std::stod(args.at("duration"));
@@ -181,15 +180,15 @@ int main(int argc, const char * const argv[])
         std::cerr << "Invalid numeric option: " << error.what() << std::endl;
         return 1;
     }
-    if (domain_id < 0 || domain_id > 232 || !std::isfinite(timeout) || timeout <= 0.0F || speaker_id < -1 ||
+    if (!std::isfinite(timeout) || timeout <= 0.0F || speaker_id < -1 ||
         !std::isfinite(duration) || duration <= 0) {
-        std::cerr << "domain_id must be 0..232, timeout must be positive, and "
+        std::cerr << "timeout must be positive, and "
                      "speaker_id must be >= -1"
                   << std::endl;
         return 1;
     }
 
-    zv::robot::ChannelFactory::Instance()->Init(domain_id, args.at("network_interface"));
+    example::InitDds(args.at("network_interface"), args.count("use_config") != 0);
     if (args.count("watch")) return WatchTopics(args.at("watch"), duration);
     zv::robot::AudioClient client;
     client.Init();
@@ -197,8 +196,9 @@ int main(int argc, const char * const argv[])
 
     int exit_code = 0;
     for (const auto & [command, value] : args) {
-        if (command == "domain_id" || command == "network_interface" || command == "timeout" ||
-            command == "output_name" || command == "speaker_id" || command == "speaker" || command == "duration") {
+        if (command == "use_config" || command == "network_interface" ||
+            command == "timeout" || command == "output_name" || command == "speaker_id" || command == "speaker" ||
+            command == "duration") {
             continue;
         }
 

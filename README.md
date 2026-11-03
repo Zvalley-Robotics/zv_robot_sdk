@@ -54,6 +54,8 @@ make
 
 Zvalley Robot SDK的软件接口同时提供 **高层服务** 与 **底层服务** 两种能力，并分别采用不同的通信模式以满足不同的实时性需求。高层服务用于控制机器人的整体行为，如模式切换、全向移动、复合动作或头部控制等，这类指令以 RPC 的请求/响应方式调用，更适合一次性或低频的功能指令。底层服务则面向实时数据与底层控制，包括电机、IMU 等高频传感器数据的获取及电机的直接驱动控制，这部分接口基于 DDS 的订阅/发布模式，实现持续、高速的数据交互。
 
+高层与底层运控接口适配版本：`v1.2.21`。
+
 ## 高层服务接口
 
 ### DDS 通信接口
@@ -94,17 +96,47 @@ ChannelFactory 提供单例，用于创建基于 DDS Topic 的通道。使用前
 |-----------|------|
 | 函数原型   | void Init(const nlohmann::json &config) |
 | 功能概述   | 初始化工厂，并根据配置初始化内部 DDS 工厂 |
-| 参数       | config：初始化所需的 JSON 配置信息 |
+| 参数       | config：JSON 配置信息，必须包含 domain_id（0–232 的整数）和非空字符串 dds_uri；dds_uri 为完整 DDS XML 配置内容或配置文件 URI |
 | 返回值     | 无 |
-| 备注       | 无 |
+| 备注       | 直接传入 JSON 对象时，文件 URI 应使用绝对路径；domain_id 为 0 时使用域 0，不读取 ZV_DDS_DOMAIN_ID |
 
 | 函数名     | Init |
 |-----------|------|
 | 函数原型   | void Init(int32_t domainId, const std::string& networkInterface = "") |
 | 功能概述   | 指定 Domain Id 和网络接口，对 ChannelFactory 初始化 |
-| 参数       | domainId：默认构造 DdsParticipant 的域 id；networkInterface：指定带宽名，默认为空 |
+| 参数       | domainId：DDS 通信域 id；networkInterface：指定网卡名，默认为空 |
 | 返回值     | 无 |
-| 备注       | 如果 networkInterface 为空，会生成自动选择的默认配置；外部开发应用程序时，enableSharedMemory 需设置为 false |
+| 备注       | 如果 networkInterface 为空，由 DDS 自动选择网络接口；domainId 为 0 时读取 ZV_DDS_DOMAIN_ID，未设置时使用域 0 |
+
+| 函数名     | Init |
+|-----------|------|
+| 函数原型   | void Init(const std::string& configPath) |
+| 功能概述   | 读取配置文件，对 ChannelFactory 初始化 |
+| 参数       | configPath：JSON 配置文件路径；文件中 domain_id 为域 id（0–232），dds_uri 为完整 DDS XML 配置内容或配置文件 URI（如 file:///etc/cyclonedds.xml） |
+| 返回值     | 无 |
+| 备注       | 域 id 和网络配置以文件内容为准；文件中的域 id 为 0 时使用域 0，不读取 ZV_DDS_DOMAIN_ID；相对 file:// 引用按 JSON 文件所在目录解析；配置文件不存在或内容无效时抛出异常 |
+
+配置文件示例：
+
+```json
+{
+  "domain_id": 0,
+  "dds_uri": "file://./cyclonedds_localhost.xml"
+}
+```
+
+`cyclonedds_localhost.xml` 与 JSON 文件放在同一目录。
+
+示例配置位于 `examples/config/`，包含 JSON 和 XML 文件。
+
+示例的域 id 通过环境变量 `ZV_DDS_DOMAIN_ID` 设置，未设置时使用域 0；使用配置文件时以文件中的域 id 为准。
+
+C++ 配置文件初始化：
+
+```cpp
+// 从 JSON 文件读取域 id 和 DDS 配置，初始化进程级 Channel 工厂
+zv::robot::ChannelFactory::Instance()->Init(std::string("examples/config/dds.json"));
+```
 
 | 函数名     | CreateSendChannel |
 |-----------|------|
@@ -116,11 +148,11 @@ ChannelFactory 提供单例，用于创建基于 DDS Topic 的通道。使用前
 
 | 函数名     | CreateRecvChannel |
 |-----------|------|
-| 函数原型   | 模板通道指针 CreateRecvChannel(const std::string& name, std::function<void(const void*)> callback, int32_t queuelen = 0) |
+| 函数原型   | 模板通道指针 CreateRecvChannel(const std::string& name, std::function<void(const void*)> callback, int32_t queue_len = 0, bool reliable = true) |
 | 功能概述   | 指定名称，创建一个指定消息类型为 MSG 的用于接收数据的通道 |
-| 参数       | name：通道名；callback：消息到达时的回调函数；queuelen：消息队列长度，如果为 0，则不启用队列 |
+| 参数       | name：通道名；callback：消息到达时的回调函数；queue_len：大于 0 时设置 DDS KeepLast 历史深度，为 0 时沿用默认历史策略；reliable：true 为可靠传输，false 为尽力传输 |
 | 返回值     | 模板通道指针 |
-| 备注       | 如果消息在回调函数中处理数千次，建议启用消息队列，避免 DDS 回调线程阻塞 |
+| 备注       | 回调在 DDS 接收线程执行，应避免耗时处理；queue_len 仅调整 DDS 历史深度，不创建独立处理线程 |
 
 ---
 
@@ -207,11 +239,11 @@ int main()
 
 | 函数名     | InitChannel |
 |-----------|------|
-| 函数原型   | void InitChannel(const std::function<void(const void*)>& handler, int64_t queuelen = 0) |
+| 函数原型   | void InitChannel(const std::function<void(const void*)>& handler, int64_t queue_len = 0, bool reliable = true) |
 | 功能概述   | 初始化 Channel，准备用于接收或处理消息 |
-| 参数       | callback：消息到达时的回调函数；queuelen：消息缓存队列长度，如果为 0，不启用队列 |
+| 参数       | handler：消息到达时的回调函数；queue_len：大于 0 时设置 DDS KeepLast 历史深度，为 0 时沿用默认历史策略；reliable：true 为可靠传输，false 为尽力传输 |
 | 返回值     | 无 |
-| 备注       | 如果消息在回调函数中处理耗时较长，建议启用消息缓存队列，避免 DDS 回调线程阻塞 |
+| 备注       | 回调在 DDS 接收线程执行，应避免耗时处理；queue_len 仅调整 DDS 历史深度，不创建独立处理线程 |
 
 | 函数名     | CloseChannel |
 |-----------|------|
@@ -460,64 +492,69 @@ string fault_reason
 
 示例路径：`examples/highcmd/intent_publisher.cpp`
 
-该示例演示如何使用 SDK 的 `ChannelPublisher` 发布 `RobotIntent_` 消息，依次完成状态切换、模型切换与连续运动控制。
+该示例通过 SDK 的 `ChannelPublisher` 发布选定的 `RobotIntent_` 意图，支持状态切换、模型切换与运动控制。默认意图为 `status` / `ready`，发送 1 次，周期为 50 ms。每次发布更新时间戳，停止连续运动控制时补发零速度。
+
+以下摘录源文件的消息构造和发布逻辑，省略参数解析及等待、退出处理函数。`value` 读取选定字段，`options` 保存 DDS 连接配置，`count` 为发送次数（`0` 表示持续发布），`period` 为发送间隔（毫秒）。
 
 ```cpp
-#include <unistd.h>
+// 1. 设置发送次数和周期；默认发送 1 次，count=0 表示持续发送，周期单位为毫秒
+const int count = example::ParseInteger(value("count", "1"), 0, 1000000);
+const int period = example::ParseInteger(value("period_ms", "50"), 10, 60000);
 
-#include <zv/robot/channel/channel_publisher.hpp>
+// 2. 构造选定的高层控制意图，直接设置消息字段
+robot_interfaces::msg::dds_::RobotIntent_ intent;
+// 意图来源与优先级，默认分别为 sdk 和 50
+intent.source_(value("source", "sdk"));
+intent.priority_(example::ParseInteger(value("priority", "50"), 0, 255));
+// 意图类型、命令及目标；默认 status / ready，action 为空
+intent.intent_type_(value("intent_type", "status"));
+intent.command_(value("command", "ready"));
+intent.action_(value("action", ""));
+// 前后、左右线速度单位为 m/s，偏航角速度单位为 rad/s
+intent.linear_x_mps_(std::stof(value("linear_x_mps", "0")));
+intent.linear_y_mps_(std::stof(value("linear_y_mps", "0")));
+intent.angular_z_radps_(std::stof(value("angular_z_radps", "0")));
 
-#include "RobotIntent_.hpp"
+// 3. 按网卡或配置文件初始化 DDS，并创建 RobotIntent 发布者；网卡模式的域 id 由环境变量设置
+example::InitDds(options.network_interface, options.use_config);
+zv::robot::ChannelPublisher<robot_interfaces::msg::dds_::RobotIntent_> publisher("rt/robot/input/intent");
+publisher.InitChannel();
 
-static const std::string INTENT_TOPIC = "rt/robot/input/intent";
+// 4. 注册停止信号；Stop 将 running 置为 0，使发布循环退出
+std::signal(SIGINT, Stop);
+std::signal(SIGTERM, Stop);
+Wait(500);  // 等待 DDS 发现，单次发送同样可以匹配已有订阅者。
 
-using namespace zv::robot;
-using namespace zv::common;
+// 5. 每次发送前更新消息时间戳，分别写入秒和纳秒
+const auto stamp = [&] {
+    const auto now = std::chrono::system_clock::now().time_since_epoch();
+    const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(now);
+    intent.header_().stamp_().sec_(static_cast<int32_t>(seconds.count()));
+    intent.header_().stamp_().nanosec_(
+        static_cast<uint32_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(now - seconds).count()));
+};
 
-int main()
-{
-    // 1. 初始化 Channel 工厂（进程级一次）
-    ChannelFactory::Instance()->Init(0);
-
-    // 2. 创建并初始化 RobotIntent 发布者
-    ChannelPublisher<robot_interfaces::msg::dds_::RobotIntent_> publisher(INTENT_TOPIC);
-    publisher.InitChannel();
-
-    // 3. 切换到 ready 状态：intent_type=status，command=ready
-    robot_interfaces::msg::dds_::RobotIntent_ intent;
-    intent.source_("sdk");
-    intent.priority_(50);
-    intent.intent_type_("status");
-    intent.command_("ready");
+// 6. 按设定次数和周期发布同一类意图；count=0 时持续发送，直到收到停止信号
+for (int sent = 0; running && (count == 0 || sent < count); ++sent) {
+    stamp();
     publisher.Write(intent);
-    sleep(2);
-
-    // 4. 切换动作模型：intent_type=model，command=switch_model，action=walk
-    intent.intent_type_("model");
-    intent.command_("switch_model");
-    intent.action_("walk");
-    publisher.Write(intent);
-    sleep(2);
-
-    // 5. 连续前进 0.3m/s：intent_type=motion，command=walk，约 20Hz 持续下发
-    intent.intent_type_("motion");
-    intent.command_("walk");
-    intent.action_("");
-    intent.linear_x_mps_(0.3F);
-    intent.linear_y_mps_(0.0F);
-    intent.angular_z_radps_(0.0F);
-    for (int i = 0; i < 200; ++i) {
-        publisher.Write(intent);
-        usleep(50000);
-    }
-
-    // 6. 停止：下发零速度
-    intent.linear_x_mps_(0.0F);
-    intent.linear_y_mps_(0.0F);
-    intent.angular_z_radps_(0.0F);
-    publisher.Write(intent);
-    return 0;
+    std::cout << "Published rt/robot/input/intent count=" << sent + 1 << std::endl;
+    if (count == 0 || sent + 1 < count) Wait(period);
 }
+
+// 7. 持续发布结束或收到停止信号时，运动意图补发一帧零速度
+if ((count == 0 || !running) && intent.intent_type_() == "motion") {
+    intent.linear_x_mps_(0);
+    intent.linear_y_mps_(0);
+    intent.angular_z_radps_(0);
+    stamp();
+    publisher.Write(intent);
+    std::cout << "Stopped; sent zero velocity on rt/robot/input/intent" << std::endl;
+}
+
+// 8. 短暂等待消息发送，再关闭发布通道
+std::this_thread::sleep_for(std::chrono::milliseconds(100));
+publisher.CloseChannel();
 ```
 
 **4. 订阅 RobotState 示例**
@@ -525,6 +562,8 @@ int main()
 示例路径：`examples/highcmd/state_subscriber.cpp`
 
 该示例演示如何使用 SDK 的 `ChannelSubscriber` 订阅 `RobotState_` 消息，读取机器人当前状态、活动模式与模型。
+
+该示例默认域 id 为 0；传入 0 时，SDK 会读取 ZV_DDS_DOMAIN_ID，未设置时使用域 0。使用 DDS 配置文件时，域 id 以文件内容为准。以下代码保留订阅和状态读取的核心逻辑。
 
 ```cpp
 #include <unistd.h>
@@ -627,6 +666,231 @@ int main()
 其中 `DownloadRecording()` 演示文件下载，`ReadMcapFile()` 演示逐条读取消息，
 并通过 `McapMessage::DecodeJson()` 获取业务字段预览。
 
+## SLAM 导航接口
+
+`zv::robot::SlamClient` 提供建图、定位、导航及地图管理接口。
+使用前需初始化 `ChannelFactory`，并确保机器人端 SLAM 及相应 RPC 服务在线。
+示例路径：`examples/slam/slam.cpp`。
+
+#### 建图、定位与导航
+
+| 接口 | 业务信息 |
+| ---- | ---- |
+| `StartMapping(scene_id, slam_type, data)` | 开始建图；仅 `IDLE` 状态可用，`scene_id` 为场景 ID，`slam_type` 为建图类型 |
+| `StopMapping(scene_id, data)` | 停止建图并保存地图 |
+| `TerminateMapping(scene_id, data)` | 强制终止建图，不保存地图 |
+| `InitPose(scene_id, auto_init, pose, data)` | 加载场景并初始化定位；`auto_init=true` 时自动定位，`false` 时使用 `pose` 手动初始化 |
+| `PoseNav(relative, target_pose, data)` | 导航到目标位姿；`relative` 选择相对或绝对目标 |
+| `PauseNav(data)` / `ResumeNav(data)` | 暂停或恢复导航 |
+| `CancelNav(data)` | 取消当前导航目标 |
+| `Close(data)` | 关闭 SLAM |
+
+位姿参数 `NavPose` 的 `position.x/y/z` 单位为米，`euler.r/p/y` 分别为 Roll、Pitch、Yaw，单位为弧度。
+也可设置四元数 `orientation.q_x/q_y/q_z/q_w`；四元数全为 `0` 时 SDK 使用欧拉角，
+否则使用四元数。无旋转姿态的单位四元数应设置 `q_x=q_y=q_z=0`、`q_w=1`。
+
+异步操作返回 `0` 仅表示请求已接收，不代表建图、定位或导航已完成。
+当前进度应通过状态查询接口确认，接口响应不能代替异步任务的最终结果。
+SLAM 控制与状态查询的返回值 `1` 表示本次响应成功，`2` 表示应用处理失败；
+通信异常时返回 SDK RPC 错误码。地图列表与下载接口另有结果解析，返回值以各接口说明为准。
+
+#### 状态与当前场景
+
+![导航状态切换示意图](images/nav.svg)
+
+图中展示主要导航状态及切换方向，完整状态以 `GetState` 查询结果为准。
+
+| 查询接口 | 业务信息 |
+| --- | --- |
+| `GetState(std::string& state)` | 查询当前 SLAM 状态 |
+| `GetState(std::string& state, std::string& scene_id)` | 一次调用 1815，同时返回状态与场景 ID；未初始化时场景 ID 为空，`MAPPING_*` 为建图场景，`NAV_*` 为当前生效导航地图 |
+| `GetPoseState(std::string& pose_state)` | 返回位姿 JSON 字符串，包含 `global_pose` 位置、四元数、欧拉角，以及 `pose_error` 定位误差 |
+| `GetNavState(std::string& nav_state)` | 返回导航进度 JSON 字符串，包含 `goal_pose` 绝对目标位姿、`navigation_time` 已导航秒数、`distance_remaining` 剩余米数；仅 `NAV_RUNNING` 有效 |
+
+`GetState` 返回的 `state` 为状态字符串；`GetPoseState`、`GetNavState` 的输出需解析为 JSON 后读取业务字段。
+
+| 状态 | 说明 |
+| ---- | ---- |
+| `IDLE` | 空闲，未建图、未定位 |
+| `MAPPING_STARTING` / `MAPPING_RUNNING` | 正在启动建图 / 正在建图 |
+| `MAPPING_STOPPING` / `MAPPING_TERMINATING` | 正在停止并保存建图 / 正在终止建图 |
+| `NAV_STARTING` / `NAV_READY` | 正在启动定位与导航 / 已定位、等待导航目标 |
+| `NAV_RUNNING` | 正在导航 |
+| `NAV_PAUSING` / `NAV_PAUSED` | 正在暂停导航 / 已暂停 |
+| `NAV_STOPPING` | 正在结束导航 |
+
+**状态与场景查询示例**
+
+```cpp
+#include <iostream>
+#include <string>
+#include <zv/robot/channel/channel_factory.hpp>
+#include <zv/robot/slam/slam_client.hpp>
+
+int main()
+{
+    // 1. 初始化通信和 SLAM 客户端；域 ID 默认读取环境变量，未设置时为 0
+    zv::robot::ChannelFactory::Instance()->Init(0);
+    zv::robot::SlamClient client;
+    client.Init();
+    client.SetTimeout(10.0f);
+
+    // 2. 一次 1815 请求同时获取状态和场景 ID，无需分别查询
+    std::string state, scene_id;
+    const int32_t result = client.GetState(state, scene_id);
+    if (result != 0 && result != 1) {
+        std::cerr << "查询 SLAM 状态失败，code=" << result << '\n';
+        return 1;
+    }
+    std::cout << "状态：" << state << "，场景：" << scene_id << '\n';
+
+    // 3. NAV_* 状态中的场景 ID 才表示当前生效导航地图
+    if (state.rfind("NAV_", 0) == 0 && !scene_id.empty())
+        std::cout << "当前生效地图：" << scene_id << '\n';
+    return 0;
+}
+```
+
+#### 地图管理
+
+| 接口 | 业务信息 |
+| ---- | ---- |
+| `QueryMap(files)` | 返回地图文件列表，`FileInfo` 包含 `name`、`path` 和 `size`（字节） |
+| `PreviewMap(map_id, map_data)` | 按场景 ID 查询地图预览信息 |
+| `DeleteMap(map_id, data)` | 按场景 ID 删除地图 |
+| `GetMap(file, local_path, progress)` | 下载一个地图文件；`file.name` 使用 `场景ID/文件名`，`local_path` 为本地文件路径，下载进度回调可省略 |
+| `DownloadMaps(local_dir, ok_count, fail_count)` | 批量下载地图文件到本地目录，可返回成功与失败文件数；返回 `0` 表示全部成功，正值为失败文件数，负值为致命错误 |
+
+查询当前生效地图应使用 `GetState(state, scene_id)` 返回的 `NAV_*` 状态及对应 `scene_id`。
+`IDLE` 表示未建图、未定位；建图场景不能当作当前生效导航地图。
+应用删除地图前应重新查询当前状态，若待删除场景正用于定位与导航，不要删除该地图。
+`DeleteMap` 本身直接提交删除请求，不包含交互确认。
+
+#### 地图、位姿与碰撞风险订阅
+
+`zv::robot::SlamSubscriber` 使用独立 DDS 通信实例，无需初始化 `ChannelFactory`；
+域 ID 与网络配置应与机器人端发布者一致，和 RPC 配合使用时应保持相同配置。
+
+| 初始化与连接接口 | 说明 |
+| ---- | ---- |
+| `Init(int32_t domain_id = 0, const std::string& network_interface = "", bool transient_map = false)` | 初始化订阅；域 ID 为 0 时读取 `ZV_DDS_DOMAIN_ID`，未设置时使用 0；空网卡名自动选择 |
+| `Init(const std::string& config_path, bool transient_map)` | 从 JSON 文件读取域 ID 与 DDS 配置；`transient_map` 需显式传入 |
+| `GetMapPublisherCount()` / `GetPosePublisherCount()` / `GetCollisionRiskPublisherCount()` | 查询各话题当前匹配的发布者数量 |
+| `Close()` | 关闭订阅；关闭后可重新初始化 |
+
+| 订阅接口 | ROS2 Topic / DDS Topic | 消息类型与业务信息 |
+| --- | --- | --- |
+| `TakeMap(SlamMap& output)` | `/map` / `rt/map` | `nav_msgs/msg/OccupancyGrid`；`SlamMap` 包含 `header`、`info` 和 `data`，`info` 为尺寸、分辨率、原点等信息，`data` 中 `-1` 表示未知栅格，`0–100` 为占用概率 |
+| `TakePose(geometry_msgs::msg::dds_::PoseStamped_& output)` | `/guide_tour/global_pose` / `rt/guide_tour/global_pose` | `geometry_msgs/msg/PoseStamped`；带时间和坐标系的全局位姿 |
+| `TakeCollisionRisk(float& output)` | `/slam/collision_risk` / `rt/slam/collision_risk` | `std_msgs/msg/Float32`；范围 `0–1`，越大风险越高，约 1 Hz |
+
+以上读取接口均非阻塞，消费最新有效样本；无新有效样本时返回 `false` 并重置输出。
+碰撞风险的非有限数值和范围外数值视为无效样本，返回 `false`。
+不能把无新消息、无匹配发布者或过期数据当作风险为零；应用应记录接收时间，区分有效零值与数据不可用。
+
+默认订阅实时地图、位姿和碰撞风险，使用尽力接收、易失及最新一帧历史。
+`transient_map=true` 时，仅地图订阅改为可靠、瞬态本地模式，用于接收支持该模式的发布者保留的地图；
+位姿和碰撞风险仍接收实时数据。
+
+**碰撞风险订阅示例**
+
+```cpp
+#include <chrono>
+#include <iostream>
+#include <thread>
+#include <zv/robot/slam/slam_subscriber.hpp>
+
+int main()
+{
+    // 1. 初始化独立订阅；域 ID 及网络设置需与机器人端一致
+    zv::robot::SlamSubscriber subscriber;
+    subscriber.Init(0, "", false);
+    // 使用配置文件时，将上一行替换为：
+    // subscriber.Init(std::string("examples/config/dds.json"), false);
+
+    while (true) {
+        // 2. 仅在取得新有效样本时更新风险值，0.0 是有效数据
+        float risk = 0.0f;
+        if (subscriber.TakeCollisionRisk(risk))
+            std::cout << "碰撞风险：" << risk << '\n';
+        // 3. 未收到新样本时不要使用被重置的输出值判定安全；显示时需另行判断数据是否过期
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+}
+```
+
+SDK 不提供 SLAM 状态事件订阅；当前状态、位姿和导航进度通过上述 RPC 查询接口获取，
+查询结果不包含完整的异步结果或自动恢复事件历史。
+
+## 运维诊断接口
+
+`zv::robot::DiagnosticsSubscriber` 用于订阅机器人实时聚合诊断信息，
+消息与 ROS2 的 `diagnostic_msgs/msg/DiagnosticArray` 兼容。
+使用独立 DDS 通信实例，无需初始化 `ChannelFactory`，域 ID 和网卡需与诊断发布端一致。
+
+| 项目 | 说明 |
+| ---- | ---- |
+| ROS2 Topic | `/diagnostics_agg` |
+| DDS Topic | `rt/diagnostics_agg` |
+| 消息类型 | `diagnostic_msgs::msg::dds_::DiagnosticArray_` |
+| 头文件 | `<zv/robot/ops/diagnostics_subscriber.hpp>` |
+
+| 接口 | 说明 |
+| ---- | ---- |
+| `Init(int32_t domain_id = 0, const std::string& network_interface = "")` | 初始化订阅；域 ID 为 0 时读取 `ZV_DDS_DOMAIN_ID`，未设置时使用 0；网卡为空时自动选择 |
+| `Init(const std::string& config_path)` | 从参数文件读取域 ID 与 DDS 配置 URI，文件格式与 DDS 通信接口一致 |
+| `Take(DiagnosticArray_& output)` | 非阻塞读取最新一帧，收到有效消息返回 `true`；无新消息返回 `false` 并重置输出 |
+| `GetPublisherCount()` | 获取当前匹配的诊断发布者数量 |
+| `Close()` | 关闭订阅，可重复调用；关闭后可重新初始化 |
+
+`DiagnosticArray_` 的 `header_()` 为消息头，`status_()` 为聚合诊断项数组。
+每条消息为一帧完整快照，应以新数组替换上一帧；空数组表示该帧没有诊断项，
+未收到新消息不能视为故障恢复。订阅使用尽力接收、易失和最新一帧历史，
+可接收可靠或尽力发送的实时诊断消息。
+
+| DiagnosticStatus_ 字段 | 类型 | 说明 |
+| ---- | ---- | ---- |
+| `level_()` | `uint8_t` | 0：正常（OK），1：警告（WARN），2：错误（ERROR），3：失效（STALE） |
+| `name_()` | `std::string` | 诊断项名称 |
+| `message_()` | `std::string` | 状态或故障描述 |
+| `hardware_id_()` | `std::string` | 硬件标识 |
+| `values_()` | `std::vector<KeyValue_>` | 附加信息，每项通过 `key_()`、`value_()` 获取键和值 |
+
+**实时诊断订阅示例**
+
+```cpp
+#include <chrono>
+#include <iostream>
+#include <thread>
+#include <zv/robot/ops/diagnostics_subscriber.hpp>
+
+int main()
+{
+    // 1. 初始化独立订阅，域 ID 默认读取环境变量，网卡自动选择
+    zv::robot::DiagnosticsSubscriber subscriber;
+    subscriber.Init(0);
+    // 使用配置文件时，将上一行替换为：
+    // subscriber.Init(std::string("examples/config/dds.json"));
+
+    while (true) {
+        // 2. 读取最新聚合快照，包含正常、警告、错误及失效项
+        diagnostic_msgs::msg::dds_::DiagnosticArray_ message;
+        if (subscriber.Take(message)) {
+            for (const auto& status : message.status_()) {
+                std::cout << "等级：" << static_cast<int>(status.level_())
+                          << "，名称：" << status.name_()
+                          << "，描述：" << status.message_()
+                          << "，硬件：" << status.hardware_id_() << '\n';
+                // 3. 输出诊断项的附加键值信息
+                for (const auto& value : status.values_())
+                    std::cout << "  " << value.key_() << "：" << value.value_() << '\n';
+            }
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+}
+```
+
 ## 底层服务接口
 
 底层通信负责实现用户侧 PC与机器人本体之间的数据交互，通讯机制基于 DDS 协议。
@@ -648,75 +912,85 @@ int main()
 
 ​    该示例演示了如何使用 SDK 发布头部控制指令（HeadControl）和底盘速度指令（Twist）DDS数据，分别发布到 rt/robot/external/head_control 和 rt/cmd_vel 话题。头部消息包含目标偏航角、俯仰角及相对/绝对角度标志，底盘消息包含线速度和角速度。
 
-​    示例以 1 Hz 发布，默认头部目标为绝对角度 0°，底盘为零速度。头部角度单位为度，底盘线速度单位为 m/s、角速度单位为 rad/s；按 Ctrl+C 或收到 SIGTERM 退出时，补发一帧零速度。
+​    该示例可选择 HeadControl 或 Twist，按所选消息单次或周期发布，默认周期为 50 ms。头部角度单位为度，底盘线速度单位为 m/s、角速度单位为 rad/s；相对头部角度仅单次发布，停止连续底盘速度发布时补发一帧零速度。
+
+以下代码保留示例的消息构造和发布逻辑，通过 `publish_head` 选择头部或底盘消息。
+`count` 为发送次数，默认 `1`，设为 `0` 时持续发送；`period_ms` 为发送间隔，单位为毫秒。
 
 ```cpp
+#include <algorithm>
 #include <chrono>
 #include <csignal>
 #include <iostream>
-#include <string>
 #include <thread>
+#include <zv/idl/ros2/Twist_.hpp>
+#include <zv/idl/t4/HeadControl_.hpp>
 #include <zv/robot/channel/channel_publisher.hpp>
 
-#include "HeadControl_.hpp"
-#include "Twist_.hpp"
-
-// DDS 话题名 = rt + ROS2 绝对路径。
-static const std::string HEAD_CONTROL_TOPIC = "rt/robot/external/head_control";
-static const std::string CMD_VEL_TOPIC = "rt/cmd_vel";
-static constexpr auto PUBLISH_PERIOD = std::chrono::seconds(1);
-
 static volatile std::sig_atomic_t keep_running = 1;
-
 static void HandleSignal(int) { keep_running = 0; }
+
+// 分段等待，使停止信号可以及时结束发布循环
+static void Wait(int period_ms)
+{
+    for (int elapsed = 0; keep_running && elapsed < period_ms; elapsed += 10)
+        std::this_thread::sleep_for(std::chrono::milliseconds(std::min(10, period_ms - elapsed)));
+}
 
 using namespace zv::robot;
 
 int main()
 {
-    std::signal(SIGINT, HandleSignal);
-    std::signal(SIGTERM, HandleSignal);
+    // 1. 选择本次发布的消息类型、次数和周期；默认只发送一帧头部指令
+    const bool publish_head = true;
+    const int count = 1;
+    const int period_ms = 50;
 
-    // 1. 初始化 Channel 工厂（全局通信资源）
-    ChannelFactory::Instance()->Init(0);
-
-    // 2. 创建 Publisher，绑定 Topic 和消息类型
-    ChannelPublisher<robot_interfaces::msg::dds_::HeadControl_> head_publisher(HEAD_CONTROL_TOPIC);
-    ChannelPublisher<geometry_msgs::msg::dds_::Twist_> velocity_publisher(CMD_VEL_TOPIC);
-
-    // 3. 初始化通信通道
-    head_publisher.InitChannel();
-    velocity_publisher.InitChannel();
-
-    // 4. 构造 HeadControl_ 消息，设定头部控制参数
-    // 按需修改目标角度（度）。持续发布使用绝对角度，避免相对角度累加。
+    // 2. 构造头部消息；yaw、pitch 单位为度，相对角度仅使用 count=1
     robot_interfaces::msg::dds_::HeadControl_ head;
     head.yaw_(0.0f);
     head.pitch_(0.0f);
     head.is_relative_(false);
+    if (publish_head && head.is_relative_() && count != 1) return 1;
 
-    // 5. 构造 Twist_ 消息，设定底盘控制参数
-    // 按需修改底盘速度：linear.x/y 为 m/s，angular.z 为 rad/s。
-    // 其余分量保持零值。
+    // 3. 构造底盘消息；线速度为 m/s，角速度为 rad/s，其余分量保持零值
     geometry_msgs::msg::dds_::Twist_ velocity;
     velocity.linear_().x_(0.0);
     velocity.linear_().y_(0.0);
     velocity.angular_().z_(0.0);
 
-    std::cout << "Publishing " << HEAD_CONTROL_TOPIC << " and " << CMD_VEL_TOPIC << " at 1 Hz; press Ctrl+C to stop."
-              << std::endl;
+    // 4. 初始化通信；也可用 JSON 配置文件初始化 ChannelFactory
+    ChannelFactory::Instance()->Init(0);
+    // 使用配置文件时，将上一行替换为：
+    // ChannelFactory::Instance()->Init(std::string("examples/config/dds.json"));
+    std::signal(SIGINT, HandleSignal);
+    std::signal(SIGTERM, HandleSignal);
 
-    auto next_publish_time = std::chrono::steady_clock::now();
-    while (keep_running != 0) {
-        // 6. 发布消息到 Topic
-        head_publisher.Write(head);
-        velocity_publisher.Write(velocity);
-        next_publish_time += PUBLISH_PERIOD;
-        std::this_thread::sleep_until(next_publish_time);
+    if (publish_head) {
+        // 5. 仅创建选定的发布者，等待 DDS 发现后按次数发送头部指令
+        ChannelPublisher<robot_interfaces::msg::dds_::HeadControl_> publisher("rt/robot/external/head_control");
+        publisher.InitChannel();
+        Wait(500);
+        for (int sent = 0; keep_running && (count == 0 || sent < count); ++sent) {
+            publisher.Write(head);
+            if (count == 0 || sent + 1 < count) Wait(period_ms);
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        publisher.CloseChannel();
+    } else {
+        // 6. 选择底盘消息时，使用相同的发送次数与周期
+        ChannelPublisher<geometry_msgs::msg::dds_::Twist_> publisher("rt/cmd_vel");
+        publisher.InitChannel();
+        Wait(500);
+        for (int sent = 0; keep_running && (count == 0 || sent < count); ++sent) {
+            publisher.Write(velocity);
+            if (count == 0 || sent + 1 < count) Wait(period_ms);
+        }
+        // 7. 持续发送结束或收到停止信号时，补发一帧零速度
+        if (count == 0 || !keep_running) publisher.Write(geometry_msgs::msg::dds_::Twist_{});
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        publisher.CloseChannel();
     }
-
-    velocity_publisher.Write(geometry_msgs::msg::dds_::Twist_{});
-    std::cout << "Stopped; sent zero velocity." << std::endl;
     return 0;
 }
 ```
@@ -859,7 +1133,7 @@ int main()
     ChannelSubscriber<yesense_interface::msg::dds_::NavAll_> subscriber(NAV_ALL_TOPIC);
 
     // 4. 初始化通信通道并注册回调函数
-    subscriber.InitChannel(Handler);
+    subscriber.InitChannel(Handler, 10, true);
 
     // 5. 保持进程运行，Subscriber 在内部线程接收消息并调用 Handler
     while (true) {
@@ -896,6 +1170,8 @@ int main()
     // 2. 创建并初始化 CameraSubscriber，绑定相机名称与话题
     zv::robot::CameraSubscriber subscriber;
     subscriber.Init(0, "", topics);
+    // 使用配置文件时，将上一行替换为：
+    // subscriber.Init("examples/config/dds.json", topics);
 
     // 3. 持续轮询各相机的最新压缩图像
     zv::robot::CameraFrame frame;
@@ -1004,7 +1280,7 @@ int main()
 | 结构体            | 关键字段                                                                                                |
 | ----------------- | ------------------------------------------------------------------------------------------------------- |
 | **BatteryInfo_**  | 总压、电流、SOC、寿命、温度、电压/温度统计、MOS 状态、电池状态、限流/保护信息                            |
-| **DriverStatus_** | 驱动状态（`STATUS_*`）、在线状态、硬件使能、故障状态、关节总数/活动/故障计数、故障关节名称列表          |
+| **DriverStatus_** | 驱动状态（`STATUS_*`）、在线状态、故障状态、关节总数/活动/故障计数、故障关节名称列表                    |
 | **SystemStatus_** | CPU/内存/磁盘占用率与温度、电池电压/电流/SOC、音量、是否静音及各项阈值告警标志                            |
 | **RlManagerStatus_** | 节点在线、模型加载/就绪、推理活动/错误、活动模型、模型类型、推理频率及最近推理耗时                     |
 | **SpeakStatus_**  | 播放状态（`STATE_IDLE/PLAYING/PAUSED`）、当前文本、队列长度                                              |

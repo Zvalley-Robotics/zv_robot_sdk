@@ -4,6 +4,8 @@ import sys as _sdk_sys
 # 显式 PYTHONPATH 的 SDK 优先；未配置时仍可使用包内 SDK。
 _sdk_sys.path.append(str(_sdk_pathlib.Path(__file__).resolve().parents[2] / "libs" / "python"))
 
+DDS_CONFIG_PATH = _sdk_pathlib.Path(__file__).resolve().parents[1] / "config/dds.json"
+
 import math
 import json
 import signal
@@ -25,7 +27,7 @@ def handle_signal(signum, frame):
     keep_running = False
 
 
-HELP_TEXT = """Usage: loco [--network_interface=<iface>] <command[=args]>
+HELP_TEXT = """Usage: loco [--network_interface=<iface>] [--use_config] <command[=args]>
 
 查询命令:
   --robot_state                    查询机器人当前运动状态、模型
@@ -98,6 +100,12 @@ def parse_arguments(argv, options, error):
 
         if key == "help":
             return set_command(options, "help", "", error)
+        if key == "use_config":
+            if "=" in argument:
+                error.append("--use_config 不接受参数")
+                return False
+            options["useConfig"] = True
+            continue
         if key == "network_interface":
             if not value:
                 error.append("--network_interface 不能为空")
@@ -158,6 +166,14 @@ def parse_move(value):
         return None
 
 
+def report_failure(client, action, result):
+    # 与 C++ 示例一致：错误码后附带服务端返回的错误描述。
+    message = client.GetLastErrorMessage()
+    detail = f" ({message})" if message else ""
+    print(f"{action} failed with code: {result}{detail}", file=sys.stderr)
+    return 1
+
+
 def run_move(client, vx, vy, vyaw):
     global keep_running
     stop_command = vx == 0.0 and vy == 0.0 and vyaw == 0.0
@@ -169,8 +185,7 @@ def run_move(client, vx, vy, vyaw):
     while True:
         result = client.Move(vx, vy, vyaw)
         if result != 0:
-            print(f"Move failed with code: {result}", file=sys.stderr)
-            return 1
+            return report_failure(client, "Move", result)
         if stop_command:
             print("停止命令已发送。")
             return 0
@@ -180,8 +195,7 @@ def run_move(client, vx, vy, vyaw):
 
     stop_result = client.Move(0.0, 0.0, 0.0)
     if stop_result != 0:
-        print(f"Stop failed with code: {stop_result}", file=sys.stderr)
-        return 1
+        return report_failure(client, "Stop", stop_result)
     print("运动已停止。")
     return 0
 
@@ -191,7 +205,7 @@ def main(argv):
         print(HELP_TEXT)
         return 0
 
-    options = {"networkInterface": "lo", "command": "", "value": "", "relative": False}
+    options = {"networkInterface": "lo", "command": "", "value": "", "relative": False, "useConfig": False}
     error = []
     if not parse_arguments(argv, options, error):
         print(error[0], file=sys.stderr)
@@ -234,7 +248,10 @@ def main(argv):
             print("--head 需要两个 -180..180 度内的有限角度: yaw pitch", file=sys.stderr)
             return 1
 
-    zv.ChannelFactory.Instance().Init(0, options["networkInterface"])
+    if options["useConfig"]:
+        zv.ChannelFactory.Instance().Init(str(DDS_CONFIG_PATH))
+    else:
+        zv.ChannelFactory.Instance().Init(0, options["networkInterface"])
 
     client = zv.LocoClient()
     client.Init()
@@ -243,16 +260,14 @@ def main(argv):
     if options["command"] == "head":
         result = client.HeadControl(yaw, pitch, options["relative"])
         if result != 0:
-            print(f"HeadControl failed with code: {result}", file=sys.stderr)
-            return 1
+            return report_failure(client, "HeadControl", result)
         print("head control command accepted")
         return 0
     if options["command"] == "head_pose":
         pose = zv.LocoHeadPose()
         result = client.GetHeadPose(pose)
         if result != 0:
-            print(f"GetHeadPose failed with code: {result}", file=sys.stderr)
-            return 1
+            return report_failure(client, "GetHeadPose", result)
         print(json.dumps({"head_pose": {"position": list(pose.position),
                          "orientation": list(pose.orientation), "age": pose.age}}))
         return 0
@@ -260,8 +275,7 @@ def main(argv):
         version = zv.LocoVersion()
         result = client.GetRobotVersion(version)
         if result != 0:
-            print(f"GetRobotVersion failed with code: {result}", file=sys.stderr)
-            return 1
+            return report_failure(client, "GetRobotVersion", result)
         print(json.dumps({"robot_version": {"version": version.version,
                          "release_date": version.releaseDate, "age": version.age}}))
         return 0
@@ -269,16 +283,14 @@ def main(argv):
     if options["command"] == "config":
         result = client.SetConfig(*config_args)
         if result != 0:
-            print(f"SetConfig failed with code: {result}", file=sys.stderr)
-            return 1
+            return report_failure(client, "SetConfig", result)
         print(f"config command accepted: {' '.join(config_args)}")
         return 0
 
     if options["command"] == "reset_fault":
         result = client.ResetFault()
         if result != 0:
-            print(f"ResetFault failed with code: {result}", file=sys.stderr)
-            return 1
+            return report_failure(client, "ResetFault", result)
         print("reset fault command accepted; check robot state for the result")
         return 0
 
@@ -286,8 +298,7 @@ def main(argv):
         method = client.PauseMotion if options["command"] == "stop" else client.ResumeMotion
         result = method()
         if result != 0:
-            print(f"MotionStop failed with code: {result}", file=sys.stderr)
-            return 1
+            return report_failure(client, "MotionStop", result)
         print(f"motion {options['command']} command accepted")
         return 0
 
@@ -295,8 +306,7 @@ def main(argv):
         state = zv.LocoState()
         result = client.GetRobotState(state)
         if result != 0:
-            print(f"GetRobotState failed with code: {result}", file=sys.stderr)
-            return 1
+            return report_failure(client, "GetRobotState", result)
         print(f"robot state: {state.stateName} ({state.state})")
         print(f"active model: {state.activeModel}")
         return 0
@@ -305,32 +315,28 @@ def main(argv):
         models = []
         result = client.GetSupportedModels(models)
         if result != 0:
-            print(f"GetSupportedModels failed with code: {result}", file=sys.stderr)
-            return 1
+            return report_failure(client, "GetSupportedModels", result)
         print({"supported_models": models})
         return 0
 
     if options["command"] == "state":
         result = client.SetState(options["value"])
         if result != 0:
-            print(f"SetState failed with code: {result}", file=sys.stderr)
-            return 1
+            return report_failure(client, "SetState", result)
         print(f"state command accepted: {options['value']}")
         return 0
 
     if options["command"] == "model":
         result = client.SetModel(options["value"])
         if result != 0:
-            print(f"SetModel failed with code: {result}", file=sys.stderr)
-            return 1
+            return report_failure(client, "SetModel", result)
         print(f"model command accepted: {options['value']}")
         return 0
 
     if options["command"] == "finish_loop":
         result = client.FinishLoop()
         if result != 0:
-            print(f"FinishLoop failed with code: {result}", file=sys.stderr)
-            return 1
+            return report_failure(client, "FinishLoop", result)
         print("finish loop command accepted")
         return 0
 

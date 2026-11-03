@@ -5,6 +5,8 @@ import pathlib as _sdk_pathlib
 import sys as _sdk_sys
 _sdk_sys.path.insert(0, str(_sdk_pathlib.Path(__file__).resolve().parents[2] / "libs" / "python"))
 
+DDS_CONFIG_PATH = _sdk_pathlib.Path(__file__).resolve().parents[1] / "config/dds.json"
+
 import argparse
 import json
 import pathlib
@@ -18,6 +20,8 @@ def parse_args():
         description="ZV data collection client example", allow_abbrev=False
     )
     parser.add_argument("--network_interface", default="lo", metavar="IFACE")
+    parser.add_argument("--use-config", "--use_config", action="store_true",
+                        help="use examples_py/config/dds.json; uses domain ID and network settings from the file")
     commands = parser.add_mutually_exclusive_group(required=True)
     commands.add_argument("--read", metavar="MCAP", help="read a local MCAP file offline")
     parser.add_argument("--read_after_download", action="store_true")
@@ -58,8 +62,11 @@ def print_topic_list(label, topics):
     print(f"{label}:" + (" " + ",".join(topics) if topics else ""))
 
 
-def report_error(action, result):
-    print(f"Failed to {action} (code={result})", file=sys.stderr)
+def report_error(client, action, result):
+    # 与 C++ 示例一致：错误码后附带服务端返回的错误描述。
+    message = client.GetLastErrorMessage()
+    detail = f", {message}" if message else ""
+    print(f"Failed to {action} (code={result}{detail})", file=sys.stderr)
     return 1
 
 
@@ -101,7 +108,10 @@ def main():
     args = parse_args()
     if args.read is not None:
         return read_mcap(args.read)
-    zv.ChannelFactory.Instance().Init(0, args.network_interface)
+    if args.use_config:
+        zv.ChannelFactory.Instance().Init(str(DDS_CONFIG_PATH))
+    else:
+        zv.ChannelFactory.Instance().Init(0, args.network_interface)
     client = zv.DataCollectionClient()
     client.Init()
     client.SetTimeout(30.0)
@@ -109,7 +119,7 @@ def main():
     if args.get_topics:
         result, topics = client.GetRecordingTopics()
         if result != zv.RPC_OK:
-            return report_error("get recording topics", result)
+            return report_error(client, "get recording topics", result)
         print(f"Recording: {int(topics.recording)}")
         print_topic_list("Topics", topics.topics)
         print_topic_list("Subscribed", topics.subscribed_topics)
@@ -127,7 +137,7 @@ def main():
             topics, modes[args.mode or "replace"], args.persist
         )
         if result != zv.RPC_OK:
-            return report_error("set recording topics", result)
+            return report_error(client, "set recording topics", result)
         print_topic_list("Topics", updated.topics)
         print_topic_list("Invalid", updated.invalid_topics)
         return 0
@@ -135,13 +145,13 @@ def main():
     if args.start:
         result = client.StartRecording()
         if result != zv.RPC_OK:
-            return report_error("start recording", result)
+            return report_error(client, "start recording", result)
         print("Recording started.")
         return 0
 
     result, recording = client.StopRecording()
     if result != zv.RPC_OK:
-        return report_error("stop recording", result)
+        return report_error(client, "stop recording", result)
 
     local_dir = pathlib.Path(args.stop) if args.stop else pathlib.Path.cwd()
     try:
@@ -163,7 +173,8 @@ def main():
     result = client.DownloadRecording(recording, str(local_path), progress)
     if result != zv.RPC_OK:
         print()
-        return report_error("download recording", result)
+        print(f"Failed to download recording (code={result})", file=sys.stderr)
+        return 1
     print(
         f"\rDownloaded {recording.file.name} to {local_path} "
         f"({recording.file.size} bytes, {recording.message_count} messages)"

@@ -4,16 +4,27 @@
 #include <map>
 #include <zv/robot/media/camera_subscriber.hpp>
 
-int main()
+#include "../dds_options.hpp"
+
+int main(int argc, const char * const argv[])
 {
+    const auto options = example::ParseDdsArguments(argc, argv);
+    if (options.help) {
+        std::cout << "Options: [--use_config] [--network_interface=<iface>] " << std::endl;
+        return 0;
+    }
     // 1. 配置相机名称与完整 DDS 话题的映射
     const std::map<std::string, std::string> topics{
-        {"head",  "rt/media/camera/head/color/image_raw/compressed" }
+        {"head", "rt/media/camera/head/color/image_raw/compressed"}
     };
 
     // 2. 创建并初始化 CameraSubscriber，绑定相机名称与话题
     zv::robot::CameraSubscriber subscriber;
-    subscriber.Init(0, "", topics);
+    if (options.use_config) {
+        subscriber.Init(example::DdsConfigPath(), topics);
+    } else {
+        subscriber.Init(0, options.network_interface, topics);
+    }
 
     // 3. 持续轮询各相机的最新压缩图像
     zv::robot::CameraFrame frame;

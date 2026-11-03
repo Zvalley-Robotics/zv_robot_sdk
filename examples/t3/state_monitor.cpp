@@ -6,6 +6,7 @@
  * 命令行参数（均可省略）：
  *   --topics=a,b,c  仅监控指定话题（短名，见下方目录）；缺省监控全部 11 个
  *   --hz=N          打印频率，单位 Hz（默认 1）
+ *   --use_config    使用 examples/config/dds.json 中的 DDS 配置
  *
  * 话题清单：
  *   rt/left_arm_state    humanoid_msgs/msg/ArmState
@@ -36,6 +37,7 @@
 #include <vector>
 #include <zv/robot/channel/channel_subscriber.hpp>
 
+#include "../dds_options.hpp"
 #include "ArmForce_.hpp"
 #include "ArmState_.hpp"
 #include "Gripper_.hpp"
@@ -359,6 +361,15 @@ static double ParseHzArg(int argc, char ** argv)
 
 int main(int argc, char ** argv)
 {
+    bool use_config = false;
+    for (int i = 1; i < argc; ++i) {
+        const std::string argument = argv[i];
+        if (argument == "--use_config") use_config = true;
+        if (argument.rfind("--use_config=", 0) == 0) {
+            std::cerr << "--use_config 不接受取值" << std::endl;
+            return 1;
+        }
+    }
     bool topics_specified = false;
     const std::vector<std::string> requested = ParseTopicsArg(argc, argv, topics_specified);
     const double hz = ParseHzArg(argc, argv);
@@ -390,7 +401,7 @@ int main(int argc, char ** argv)
     }
 
     // 初始化 DDS（domain 0）
-    ChannelFactory::Instance()->Init(0);
+    example::InitDds("", use_config);
 
     // 按所选话题订阅；订阅者需存活到循环结束
     std::vector<std::shared_ptr<void>> subscribers;

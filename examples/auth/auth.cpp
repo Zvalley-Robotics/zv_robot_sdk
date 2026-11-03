@@ -9,6 +9,8 @@
 #include <zv/robot/channel/channel_factory.hpp>
 #include <zv/robot/internal/internal.hpp>
 
+#include "../dds_options.hpp"
+
 using namespace zv::robot;
 
 namespace
@@ -23,17 +25,6 @@ std::vector<std::string> SplitWords(const std::string & value)
         words.push_back(word);
     }
     return words;
-}
-
-bool ParseDomainId(const std::string & value, int32_t & domain_id)
-{
-    try {
-        std::size_t parsed_size = 0;
-        domain_id = std::stoi(value, &parsed_size);
-        return parsed_size == value.size() && domain_id >= 0 && domain_id <= 232;
-    } catch (const std::exception &) {
-        return false;
-    }
 }
 
 bool ParseTimeout(const std::string & value, float & timeout_seconds)
@@ -70,7 +61,6 @@ int Revoke(AuthClient & client)
 int main(int argc, char const * argv[])
 {
     std::map<std::string, std::string> args = {
-        {"domain_id",         "0" },
         {"network_interface", ""  },
         {"timeout",           "10"},
     };
@@ -89,7 +79,7 @@ int main(int argc, char const * argv[])
     }
 
     if (argc == 1 || args.count("help") != 0) {
-        std::cout << "Usage: auth [--domain_id=<id>] [--network_interface=<iface>] "
+        std::cout << "Usage: auth [--network_interface=<iface>] [--use_config] "
                      "[--timeout=<seconds>] <command>\n\n"
                   << "Commands:\n"
                   << "  --request_access[=<type>]        Request raw access metadata\n"
@@ -104,12 +94,7 @@ int main(int argc, char const * argv[])
         return 0;
     }
 
-    int32_t domain_id = 0;
     float timeout_seconds = 0.0F;
-    if (!ParseDomainId(args.at("domain_id"), domain_id)) {
-        std::cerr << "Invalid domain_id: " << args.at("domain_id") << std::endl;
-        return 1;
-    }
     if (!ParseTimeout(args.at("timeout"), timeout_seconds)) {
         std::cerr << "Invalid timeout: " << args.at("timeout") << std::endl;
         return 1;
@@ -124,7 +109,7 @@ int main(int argc, char const * argv[])
     }
 
     try {
-        ChannelFactory::Instance()->Init(domain_id, args.at("network_interface"));
+        example::InitDds(args.at("network_interface"), args.count("use_config") != 0);
 
         AuthClient client;
         client.Init();

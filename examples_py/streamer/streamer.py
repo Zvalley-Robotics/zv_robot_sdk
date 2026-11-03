@@ -3,6 +3,8 @@ import pathlib as _sdk_pathlib
 import sys as _sdk_sys
 _sdk_sys.path.insert(0, str(_sdk_pathlib.Path(__file__).resolve().parents[2] / "libs" / "python"))
 
+DDS_CONFIG_PATH = _sdk_pathlib.Path(__file__).resolve().parents[1] / "config/dds.json"
+
 import argparse
 import pathlib
 import sys
@@ -12,8 +14,9 @@ import zv_robot_sdk_python as zv
 
 def parse_args():
     parser = argparse.ArgumentParser(description="ZV media streamer client example")
-    parser.add_argument("--domain-id", type=int, default=0)
     parser.add_argument("--network-interface", default="")
+    parser.add_argument("--use-config", "--use_config", action="store_true",
+                        help="use examples_py/config/dds.json; uses domain ID and network settings from the file")
     parser.add_argument("--timeout", type=float, default=20.0)
     parser.add_argument("--trro-config-file", type=pathlib.Path)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -31,8 +34,8 @@ def parse_args():
 
 def main():
     args = parse_args()
-    if not 0 <= args.domain_id <= 232 or args.timeout <= 0:
-        print("invalid domain ID or timeout", file=sys.stderr)
+    if args.timeout <= 0:
+        print("invalid timeout", file=sys.stderr)
         return 1
 
     trro_config = ""
@@ -43,7 +46,10 @@ def main():
             print(f"failed to read TRRO config: {error}", file=sys.stderr)
             return 1
 
-    zv.ChannelFactory.Instance().Init(args.domain_id, args.network_interface)
+    if args.use_config:
+        zv.ChannelFactory.Instance().Init(str(DDS_CONFIG_PATH))
+    else:
+        zv.ChannelFactory.Instance().Init(0, args.network_interface)
     client = zv.MediaClient()
     client.Init()
     client.SetTimeout(args.timeout)

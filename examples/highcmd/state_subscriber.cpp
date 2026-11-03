@@ -1,12 +1,12 @@
 #include <unistd.h>
 
-#include <charconv>
 #include <csignal>
 #include <iostream>
 #include <string_view>
 #include <zv/robot/channel/channel_subscriber.hpp>
 #include <zv/third_party/nlohmann_json/json.hpp>
 
+#include "../dds_options.hpp"
 #include "RobotState_.hpp"
 
 static const std::string STATE_TOPIC = "rt/robot/state";
@@ -49,25 +49,20 @@ void Handler(const void * msg, bool json_output)
 
 int main(int argc, char ** argv)
 {
-    int32_t domain_id = 100;  // 保留此示例现有的默认域；Web 工具显式传入配置值。
     std::string network_interface;
+    bool use_config = false;
     bool json_output = false;
     for (int i = 1; i < argc; ++i) {
         const std::string_view arg(argv[i]);
         if (arg == "--help") {
-            std::cout << "Usage: robotStateSubscriber [--domain_id=0..232] [--network_interface=eth0] [--json]\n";
+            std::cout << "Usage: robotStateSubscriber [--network_interface=eth0] [--use_config] "
+                         "[--json]\n";
             return 0;
         }
         if (arg == "--json") {
             json_output = true;
-        } else if (arg.substr(0, 12) == "--domain_id=") {
-            const auto value = arg.substr(12);
-            const auto result = std::from_chars(value.data(), value.data() + value.size(), domain_id);
-            if (result.ec != std::errc() || result.ptr != value.data() + value.size() || domain_id < 0 ||
-                domain_id > 232) {
-                std::cerr << "Invalid domain_id: " << value << std::endl;
-                return 1;
-            }
+        } else if (arg == "--use_config") {
+            use_config = true;
         } else if (arg.substr(0, 20) == "--network_interface=") {
             network_interface = arg.substr(20);
         } else {
@@ -80,7 +75,7 @@ int main(int argc, char ** argv)
 
     try {
         // 3. 初始化 Channel 工厂
-        ChannelFactory::Instance()->Init(domain_id, network_interface);
+        example::InitDds(network_interface, use_config);
 
         // 4. 创建 Subscriber 对象，绑定话题和消息类型
         ChannelSubscriber<robot_interfaces::msg::dds_::RobotState_> subscriber(STATE_TOPIC);

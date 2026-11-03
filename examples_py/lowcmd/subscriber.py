@@ -3,7 +3,11 @@ import pathlib as _sdk_pathlib
 import sys as _sdk_sys
 _sdk_sys.path.insert(0, str(_sdk_pathlib.Path(__file__).resolve().parents[2] / "libs" / "python"))
 
-import time
+import signal
+import threading
+
+_sdk_sys.path.append(str(_sdk_pathlib.Path(__file__).resolve().parents[1]))
+import dds_options
 
 import zv_robot_sdk_python as zv
 
@@ -36,8 +40,19 @@ def Handler(joint_state_msg: zv.JointStates_):
         )
 
 
-zv.ChannelFactory.Instance().Init(0)
-subscriber = zv.ChannelSubscriber_JointStates_(LOW_STATE_TOPIC)
-subscriber.InitChannel(Handler, LOW_STATE_QUEUE_LEN, LOW_STATE_RELIABLE)
-while True:
-    time.sleep(10)
+def main():
+    args = dds_options.parser(__doc__).parse_args()
+    dds_options.init(zv, args)
+    subscriber = zv.ChannelSubscriber_JointStates_(LOW_STATE_TOPIC)
+    subscriber.InitChannel(Handler, LOW_STATE_QUEUE_LEN, LOW_STATE_RELIABLE)
+    stopped = threading.Event()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        signal.signal(sig, lambda *_: stopped.set())
+    try:
+        stopped.wait()
+    finally:
+        subscriber.CloseChannel()
+
+
+if __name__ == "__main__":
+    main()

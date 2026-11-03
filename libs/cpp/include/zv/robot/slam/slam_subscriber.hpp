@@ -12,7 +12,7 @@ namespace zv::robot
 
 inline constexpr const char * SLAM_MAP_TOPIC = "rt/map";
 inline constexpr const char * SLAM_POSE_TOPIC = "rt/guide_tour/global_pose";
-inline constexpr const char * SLAM_STATUS_TOPIC = "rt/slam/status";
+inline constexpr const char * SLAM_COLLISION_RISK_TOPIC = "rt/slam/collision_risk";
 
 struct SlamMap
 {
@@ -37,18 +37,20 @@ public:
     // publishers. domain_id=0 follows ZV_DDS_DOMAIN_ID, matching
     // ChannelFactory.
     void Init(int32_t domain_id = 0, const std::string & network_interface = "", bool transient_map = false);
+    void Init(const std::string & config_path, bool transient_map);
     void Close();
     // Nonblocking, consume the newest sample; false resets output.
     bool TakeMap(SlamMap & output);
     bool TakePose(geometry_msgs::msg::dds_::PoseStamped_ & output);
-    // FIFO raw backend status JSON, including asynchronous final results.
-    // Bounded DDS history: 100 events. Init before issuing commands.
-    bool TakeStatus(std::string & output);
+    // Latest risk in [0,1]; no message means unavailable, never assume zero risk.
+    bool TakeCollisionRisk(float & output);
+    int32_t GetCollisionRiskPublisherCount() const;
     int32_t GetMapPublisherCount() const;
     int32_t GetPosePublisherCount() const;
-    int32_t GetStatusPublisherCount() const;
 
 private:
+    void InitConfigured(int32_t domain_id, const std::string & network_interface, bool transient_map,
+                        const std::string & config_path);
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };

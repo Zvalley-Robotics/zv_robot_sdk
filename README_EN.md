@@ -54,6 +54,8 @@ High-level service operations also require the corresponding services on the rob
 
 Zvalley Robot SDK provides both **high-level services** and **low-level services**, using different communication patterns to meet their respective real-time requirements. High-level services control overall robot behavior, such as mode switching, omnidirectional movement, composite actions, and head control. These commands use RPC request/response calls, which suit one-time or low-frequency operations. Low-level services handle real-time data and low-level control, including high-frequency motor and IMU data acquisition and direct motor control. These interfaces use DDS publish/subscribe communication for continuous, high-speed data exchange.
 
+High-level and low-level motion control interfaces are compatible with motion control version `v1.2.21`.
+
 ## High-Level Service Interfaces
 
 ### DDS Communication Interfaces
@@ -94,17 +96,47 @@ ChannelFactory is a singleton used to create channels based on DDS topics. Call 
 |-----------|------|
 | Prototype | void Init(const nlohmann::json &config) |
 | Description | Initializes the factory and its internal DDS factory from the configuration |
-| Parameters | config: JSON configuration required for initialization |
+| Parameters | config: JSON configuration containing domain_id (an integer from 0 to 232) and a nonempty dds_uri string; dds_uri contains the complete DDS XML configuration or a configuration file URI |
 | Returns | None |
-| Notes | None |
+| Notes | When passing a JSON object directly, use an absolute path for file URIs; domain_id 0 selects domain 0 without reading ZV_DDS_DOMAIN_ID |
 
 | Function | Init |
 |-----------|------|
 | Prototype | void Init(int32_t domainId, const std::string& networkInterface = "") |
 | Description | Initializes ChannelFactory with a domain ID and network interface |
-| Parameters | domainId: domain ID used to construct the default DdsParticipant; networkInterface: network interface name, empty by default |
+| Parameters | domainId: DDS communication domain ID; networkInterface: network interface name, empty by default |
 | Returns | None |
-| Notes | If networkInterface is empty, a default configuration with automatic interface selection is generated; set enableSharedMemory to false when developing external applications |
+| Notes | If networkInterface is empty, DDS selects the network interface automatically; when domainId is 0, the SDK reads ZV_DDS_DOMAIN_ID and uses domain 0 if it is unset |
+
+| Function | Init |
+|-----------|------|
+| Prototype | void Init(const std::string& configPath) |
+| Description | Reads a configuration file to initialize ChannelFactory |
+| Parameters | configPath: path to a JSON configuration file; domain_id specifies the domain ID (0–232), and dds_uri contains the complete DDS XML configuration or a configuration file URI, such as file:///etc/cyclonedds.xml |
+| Returns | None |
+| Notes | The domain ID and network configuration come from the file; domain ID 0 in the file selects domain 0 without reading ZV_DDS_DOMAIN_ID; relative file:// references are resolved against the JSON file's directory; a missing or invalid configuration file causes an exception |
+
+Configuration file example:
+
+```json
+{
+  "domain_id": 0,
+  "dds_uri": "file://./cyclonedds_localhost.xml"
+}
+```
+
+Place `cyclonedds_localhost.xml` in the same directory as the JSON file.
+
+The example configuration is in `examples/config/` and includes JSON and XML files.
+
+The examples use the `ZV_DDS_DOMAIN_ID` environment variable to select the domain ID, defaulting to domain 0 when it is unset. When using a configuration file, the domain ID comes from the file.
+
+C++ initialization from a configuration file:
+
+```cpp
+// Read the domain ID and DDS configuration from JSON to initialize the process-wide channel factory
+zv::robot::ChannelFactory::Instance()->Init(std::string("examples/config/dds.json"));
+```
 
 | Function | CreateSendChannel |
 |-----------|------|
@@ -116,11 +148,11 @@ ChannelFactory is a singleton used to create channels based on DDS topics. Call 
 
 | Function | CreateRecvChannel |
 |-----------|------|
-| Prototype | Channel pointer CreateRecvChannel(const std::string& name, std::function<void(const void*)> callback, int32_t queuelen = 0) |
+| Prototype | Channel pointer CreateRecvChannel(const std::string& name, std::function<void(const void*)> callback, int32_t queue_len = 0, bool reliable = true) |
 | Description | Creates a receiving channel with the specified name and message type MSG |
-| Parameters | name: channel name; callback: callback invoked when a message arrives; queuelen: message queue length; 0 disables the queue |
+| Parameters | name: channel name; callback: callback invoked when a message arrives; queue_len: sets the DDS KeepLast history depth when greater than 0, or retains the default history policy when 0; reliable: true for reliable delivery, false for best-effort delivery |
 | Returns | Pointer to the templated channel |
-| Notes | For callbacks that perform thousands of processing operations, enable the message queue to avoid blocking the DDS callback thread |
+| Notes | Callbacks run on the DDS receive thread and should avoid time-consuming work; queue_len only changes the DDS history depth and does not create a separate processing thread |
 
 ---
 
@@ -207,11 +239,11 @@ Subscribes to messages of a specified type.
 
 | Function | InitChannel |
 |-----------|------|
-| Prototype | void InitChannel(const std::function<void(const void*)>& handler, int64_t queuelen = 0) |
+| Prototype | void InitChannel(const std::function<void(const void*)>& handler, int64_t queue_len = 0, bool reliable = true) |
 | Description | Initializes the channel to receive and process messages |
-| Parameters | callback: callback invoked when a message arrives; queuelen: message queue length; 0 disables the queue |
+| Parameters | handler: callback invoked when a message arrives; queue_len: sets the DDS KeepLast history depth when greater than 0, or retains the default history policy when 0; reliable: true for reliable delivery, false for best-effort delivery |
 | Returns | None |
-| Notes | Enable the message queue for time-consuming callbacks to avoid blocking the DDS callback thread |
+| Notes | Callbacks run on the DDS receive thread and should avoid time-consuming work; queue_len only changes the DDS history depth and does not create a separate processing thread |
 
 | Function | CloseChannel |
 |-----------|------|
@@ -394,7 +426,7 @@ Available models:
 
 **motion Parameters**
 
-`motion` is a continuous motion command. A continuous publishing rate of 10 Hz is recommended. To stop, send an intent with all three velocities set to `0`.
+`motion` is a continuous motion command. A continuous publishing rate of 10 Hz is recommended. To stop, send an intent with all three velocities set to 0.
 
 | Parameter | Type | Description |
 | --------- | ---- | ----------- |
@@ -460,64 +492,69 @@ string fault_reason
 
 Example: `examples/highcmd/intent_publisher.cpp`
 
-This example uses the SDK's `ChannelPublisher` to publish `RobotIntent_` messages, performing state switching, model switching, and continuous motion control in sequence.
+This example uses the SDK's `ChannelPublisher` to publish a selected `RobotIntent_` intent for state switching, model switching, or motion control. The default intent is `status` / `ready`, published once, with a period of 50 ms. Each publication updates the timestamp; stopping continuous motion control sends an additional zero-velocity message.
+
+The following excerpt contains the message construction and publishing logic from the source file. Argument parsing and the wait and shutdown helpers are omitted. `value` reads the selected fields, `options` holds the DDS connection settings, `count` is the number of publications (`0` means continuous publication), and `period` is the interval in milliseconds.
 
 ```cpp
-#include <unistd.h>
+// 1. Set the publication count and period; the default is one publication, count=0 publishes continuously, and the period is in milliseconds
+const int count = example::ParseInteger(value("count", "1"), 0, 1000000);
+const int period = example::ParseInteger(value("period_ms", "50"), 10, 60000);
 
-#include <zv/robot/channel/channel_publisher.hpp>
+// 2. Construct the selected high-level control intent by setting the message fields directly
+robot_interfaces::msg::dds_::RobotIntent_ intent;
+// Intent source and priority default to sdk and 50, respectively
+intent.source_(value("source", "sdk"));
+intent.priority_(example::ParseInteger(value("priority", "50"), 0, 255));
+// Intent type, command, and target; defaults are status / ready, with an empty action
+intent.intent_type_(value("intent_type", "status"));
+intent.command_(value("command", "ready"));
+intent.action_(value("action", ""));
+// Forward/backward and lateral linear velocities are in m/s; yaw angular velocity is in rad/s
+intent.linear_x_mps_(std::stof(value("linear_x_mps", "0")));
+intent.linear_y_mps_(std::stof(value("linear_y_mps", "0")));
+intent.angular_z_radps_(std::stof(value("angular_z_radps", "0")));
 
-#include "RobotIntent_.hpp"
+// 3. Initialize DDS using a network interface or configuration file, then create the RobotIntent publisher; interface mode uses the environment variable for the domain ID
+example::InitDds(options.network_interface, options.use_config);
+zv::robot::ChannelPublisher<robot_interfaces::msg::dds_::RobotIntent_> publisher("rt/robot/input/intent");
+publisher.InitChannel();
 
-static const std::string INTENT_TOPIC = "rt/robot/input/intent";
+// 4. Register stop signals; Stop sets running to 0 so the publishing loop exits
+std::signal(SIGINT, Stop);
+std::signal(SIGTERM, Stop);
+Wait(500);  // Allow DDS discovery so a single message can also reach existing subscribers.
 
-using namespace zv::robot;
-using namespace zv::common;
+// 5. Update the timestamp before each publication, setting seconds and nanoseconds separately
+const auto stamp = [&] {
+    const auto now = std::chrono::system_clock::now().time_since_epoch();
+    const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(now);
+    intent.header_().stamp_().sec_(static_cast<int32_t>(seconds.count()));
+    intent.header_().stamp_().nanosec_(
+        static_cast<uint32_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(now - seconds).count()));
+};
 
-int main()
-{
-    // 1. Initialize the channel factory once per process
-    ChannelFactory::Instance()->Init(0);
-
-    // 2. Create and initialize the RobotIntent publisher
-    ChannelPublisher<robot_interfaces::msg::dds_::RobotIntent_> publisher(INTENT_TOPIC);
-    publisher.InitChannel();
-
-    // 3. Switch to ready: intent_type=status, command=ready
-    robot_interfaces::msg::dds_::RobotIntent_ intent;
-    intent.source_("sdk");
-    intent.priority_(50);
-    intent.intent_type_("status");
-    intent.command_("ready");
+// 6. Publish the same kind of intent at the configured count and period; count=0 continues until a stop signal arrives
+for (int sent = 0; running && (count == 0 || sent < count); ++sent) {
+    stamp();
     publisher.Write(intent);
-    sleep(2);
-
-    // 4. Switch action model: intent_type=model, command=switch_model, action=walk
-    intent.intent_type_("model");
-    intent.command_("switch_model");
-    intent.action_("walk");
-    publisher.Write(intent);
-    sleep(2);
-
-    // 5. Move forward at 0.3 m/s: intent_type=motion, command=walk, published at approximately 20 Hz
-    intent.intent_type_("motion");
-    intent.command_("walk");
-    intent.action_("");
-    intent.linear_x_mps_(0.3F);
-    intent.linear_y_mps_(0.0F);
-    intent.angular_z_radps_(0.0F);
-    for (int i = 0; i < 200; ++i) {
-        publisher.Write(intent);
-        usleep(50000);
-    }
-
-    // 6. Stop by sending zero velocities
-    intent.linear_x_mps_(0.0F);
-    intent.linear_y_mps_(0.0F);
-    intent.angular_z_radps_(0.0F);
-    publisher.Write(intent);
-    return 0;
+    std::cout << "Published rt/robot/input/intent count=" << sent + 1 << std::endl;
+    if (count == 0 || sent + 1 < count) Wait(period);
 }
+
+// 7. Send one zero-velocity motion intent when continuous publication ends or a stop signal arrives
+if ((count == 0 || !running) && intent.intent_type_() == "motion") {
+    intent.linear_x_mps_(0);
+    intent.linear_y_mps_(0);
+    intent.angular_z_radps_(0);
+    stamp();
+    publisher.Write(intent);
+    std::cout << "Stopped; sent zero velocity on rt/robot/input/intent" << std::endl;
+}
+
+// 8. Briefly allow messages to be sent before closing the publishing channel
+std::this_thread::sleep_for(std::chrono::milliseconds(100));
+publisher.CloseChannel();
 ```
 
 **4. RobotState Subscription Example**
@@ -525,6 +562,8 @@ int main()
 Example: `examples/highcmd/state_subscriber.cpp`
 
 This example uses the SDK's `ChannelSubscriber` to subscribe to `RobotState_` messages and read the robot's current state, active mode, and model.
+
+The example's default domain ID is 0. When 0 is passed, the SDK reads ZV_DDS_DOMAIN_ID and uses domain 0 if it is unset. When using a DDS configuration file, the domain ID comes from the file. The code below retains the core subscription and state-reading logic.
 
 ```cpp
 #include <unistd.h>
@@ -582,7 +621,7 @@ Initialize DDS communication before use and ensure that data collection and the 
 | `StartRecording()` | Starts recording |
 | `StopRecording(RecordingInfo& recording)` | Stops recording and returns recording file information and the message count |
 
-An interface return value of `0` indicates success; any nonzero value indicates failure. Use `GetLastErrorMessage()` for error details.
+An interface return value of `0` indicates success; any value other than `0` indicates failure. Use `GetLastErrorMessage()` for error details.
 `StopRecording()` only stops recording and returns file information; it does not download the file automatically.
 
 **Start/Stop Recording Example**
@@ -627,6 +666,231 @@ For recording file downloads and MCAP reading and parsing, see
 `DownloadRecording()` demonstrates downloading a file, while `ReadMcapFile()` demonstrates reading messages one by one
 and using `McapMessage::DecodeJson()` to preview application fields.
 
+## SLAM Navigation Interfaces
+
+`zv::robot::SlamClient` provides mapping, localization, navigation, and map management interfaces.
+Initialize `ChannelFactory` before use and ensure that SLAM and the corresponding RPC services on the robot are online.
+Example: `examples/slam/slam.cpp`.
+
+#### Mapping, Localization, and Navigation
+
+| Interface | Business Information |
+| ---- | ---- |
+| `StartMapping(scene_id, slam_type, data)` | Starts mapping; available only in `IDLE`. `scene_id` is the scene ID, and `slam_type` is the mapping type |
+| `StopMapping(scene_id, data)` | Stops mapping and saves the map |
+| `TerminateMapping(scene_id, data)` | Terminates mapping without saving the map |
+| `InitPose(scene_id, auto_init, pose, data)` | Loads a scene and initializes localization; `auto_init=true` uses automatic localization, while `false` uses `pose` for manual initialization |
+| `PoseNav(relative, target_pose, data)` | Navigates to the target pose; `relative` selects a relative or absolute target |
+| `PauseNav(data)` / `ResumeNav(data)` | Pauses or resumes navigation |
+| `CancelNav(data)` | Cancels the current navigation goal |
+| `Close(data)` | Shuts down SLAM |
+
+In `NavPose`, `position.x/y/z` are in meters, and `euler.r/p/y` represent roll, pitch, and yaw in radians.
+Alternatively, set the quaternion `orientation.q_x/q_y/q_z/q_w`. When all quaternion components are `0`, the SDK uses Euler angles;
+otherwise, it uses the quaternion. For a unit quaternion representing no rotation, set `q_x=q_y=q_z=0` and `q_w=1`.
+
+A return value of `0` for an asynchronous operation only means that the request has been accepted; it does not mean that mapping, localization, or navigation has completed.
+Check current progress through the state query interfaces. An interface response does not replace the final result of an asynchronous task.
+For SLAM control and state queries, a return value of `1` means that the current response reports success, while `2` indicates an application-level failure;
+communication errors return SDK RPC error codes. Map listing and download interfaces perform their own result parsing; refer to each interface's return-value description.
+
+#### State and Current Scene
+
+![Navigation State Transition Diagram](images/nav.svg)
+
+The diagram shows the main navigation states and transition directions. Use `GetState` queries for the complete state information.
+
+| Query Interface | Business Information |
+| --- | --- |
+| `GetState(std::string& state)` | Queries the current SLAM state |
+| `GetState(std::string& state, std::string& scene_id)` | Calls API 1815 once to return both the state and scene ID; the scene ID is empty before initialization, identifies the mapping scene in `MAPPING_*`, and identifies the currently active navigation map in `NAV_*` |
+| `GetPoseState(std::string& pose_state)` | Returns a pose JSON string containing `global_pose` position, quaternion, Euler angles, and the `pose_error` localization error |
+| `GetNavState(std::string& nav_state)` | Returns a navigation progress JSON string containing the absolute target pose `goal_pose`, elapsed navigation time `navigation_time` in seconds, and remaining distance `distance_remaining` in meters; available only in `NAV_RUNNING` |
+
+`GetState` returns `state` as a state string. Parse the outputs of `GetPoseState` and `GetNavState` as JSON before reading their business fields.
+
+| State | Description |
+| ---- | ---- |
+| `IDLE` | Idle, with neither mapping nor localization active |
+| `MAPPING_STARTING` / `MAPPING_RUNNING` | Starting mapping / Mapping in progress |
+| `MAPPING_STOPPING` / `MAPPING_TERMINATING` | Stopping and saving mapping / Terminating mapping |
+| `NAV_STARTING` / `NAV_READY` | Starting localization and navigation / Localized and waiting for a navigation goal |
+| `NAV_RUNNING` | Navigating |
+| `NAV_PAUSING` / `NAV_PAUSED` | Pausing navigation / Navigation paused |
+| `NAV_STOPPING` | Stopping navigation |
+
+**State and Scene Query Example**
+
+```cpp
+#include <iostream>
+#include <string>
+#include <zv/robot/channel/channel_factory.hpp>
+#include <zv/robot/slam/slam_client.hpp>
+
+int main()
+{
+    // 1. Initialize communication and the SLAM client; read the domain ID from the environment, defaulting to 0 if unset
+    zv::robot::ChannelFactory::Instance()->Init(0);
+    zv::robot::SlamClient client;
+    client.Init();
+    client.SetTimeout(10.0f);
+
+    // 2. Obtain the state and scene ID in one API 1815 request, without separate queries
+    std::string state, scene_id;
+    const int32_t result = client.GetState(state, scene_id);
+    if (result != 0 && result != 1) {
+        std::cerr << "Failed to query SLAM state, code=" << result << '\n';
+        return 1;
+    }
+    std::cout << "State: " << state << ", scene: " << scene_id << '\n';
+
+    // 3. Only a scene ID in a NAV_* state identifies the currently active navigation map
+    if (state.rfind("NAV_", 0) == 0 && !scene_id.empty())
+        std::cout << "Currently active map: " << scene_id << '\n';
+    return 0;
+}
+```
+
+#### Map Management
+
+| Interface | Business Information |
+| ---- | ---- |
+| `QueryMap(files)` | Returns a list of map files; `FileInfo` contains `name`, `path`, and `size` in bytes |
+| `PreviewMap(map_id, map_data)` | Queries map preview information by scene ID |
+| `DeleteMap(map_id, data)` | Deletes a map by scene ID |
+| `GetMap(file, local_path, progress)` | Downloads one map file; `file.name` uses `scene_id/filename`, `local_path` is the local file path, and the download progress callback is optional |
+| `DownloadMaps(local_dir, ok_count, fail_count)` | Downloads map files in bulk to a local directory and can return the numbers of successful and failed downloads; returns `0` if all succeed, a positive value for the number of failed files, or a negative value for a fatal error |
+
+To identify the currently active map, use the `NAV_*` state and corresponding `scene_id` returned by `GetState(state, scene_id)`.
+`IDLE` means that neither mapping nor localization is active. A mapping scene must not be treated as the currently active navigation map.
+Before deleting a map, the application should query the current state again. If the selected scene is being used for localization and navigation, do not delete that map.
+`DeleteMap` directly submits the deletion request and does not include interactive confirmation.
+
+#### Map, Pose, and Collision Risk Subscriptions
+
+`zv::robot::SlamSubscriber` uses an independent DDS communication instance and does not require `ChannelFactory` initialization.
+Its domain ID and network configuration should match the robot-side publishers; when used with RPC, use the same configuration for both.
+
+| Initialization and Connection Interface | Description |
+| ---- | ---- |
+| `Init(int32_t domain_id = 0, const std::string& network_interface = "", bool transient_map = false)` | Initializes subscriptions; domain ID 0 reads `ZV_DDS_DOMAIN_ID`, defaulting to 0 if unset; an empty network interface name enables automatic selection |
+| `Init(const std::string& config_path, bool transient_map)` | Reads the domain ID and DDS configuration from a JSON file; `transient_map` must be passed explicitly |
+| `GetMapPublisherCount()` / `GetPosePublisherCount()` / `GetCollisionRiskPublisherCount()` | Queries the number of currently matched publishers for each topic |
+| `Close()` | Closes subscriptions; initialization can be performed again after closing |
+
+| Subscription Interface | ROS2 Topic / DDS Topic | Message Type and Business Information |
+| --- | --- | --- |
+| `TakeMap(SlamMap& output)` | `/map` / `rt/map` | `nav_msgs/msg/OccupancyGrid`; `SlamMap` contains `header`, `info`, and `data`. `info` includes dimensions, resolution, origin, and other information; in `data`, `-1` indicates an unknown cell, and `0–100` represents occupancy probability |
+| `TakePose(geometry_msgs::msg::dds_::PoseStamped_& output)` | `/guide_tour/global_pose` / `rt/guide_tour/global_pose` | `geometry_msgs/msg/PoseStamped`; global pose with a timestamp and coordinate frame |
+| `TakeCollisionRisk(float& output)` | `/slam/collision_risk` / `rt/slam/collision_risk` | `std_msgs/msg/Float32`; ranges from `0–1`, with higher values indicating greater risk, at approximately 1 Hz |
+
+All of these read interfaces are nonblocking and consume the latest valid sample; they return `false` and reset the output when no new valid sample is available.
+Non-finite or out-of-range collision risk values are invalid samples and cause `false` to be returned.
+Do not treat missing new messages, no matched publishers, or stale data as zero risk. The application should record reception times and distinguish a valid zero value from unavailable data.
+
+By default, subscriptions receive live maps, poses, and collision risk using best-effort reliability, volatile durability, and a history depth of one latest sample.
+When `transient_map=true`, only the map subscription switches to reliable, transient-local mode to receive retained maps from publishers supporting that mode;
+pose and collision risk subscriptions continue to receive live data.
+
+**Collision Risk Subscription Example**
+
+```cpp
+#include <chrono>
+#include <iostream>
+#include <thread>
+#include <zv/robot/slam/slam_subscriber.hpp>
+
+int main()
+{
+    // 1. Initialize an independent subscription; the domain ID and network settings must match the robot
+    zv::robot::SlamSubscriber subscriber;
+    subscriber.Init(0, "", false);
+    // To use a configuration file, replace the previous line with:
+    // subscriber.Init(std::string("examples/config/dds.json"), false);
+
+    while (true) {
+        // 2. Update the risk only when a new valid sample is received; 0.0 is valid data
+        float risk = 0.0f;
+        if (subscriber.TakeCollisionRisk(risk))
+            std::cout << "Collision risk: " << risk << '\n';
+        // 3. Without a new sample, do not use the reset output to infer safety; check data freshness separately when displaying it
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+}
+```
+
+The SDK does not provide SLAM state event subscriptions. Query the current state, pose, and navigation progress through the RPC interfaces above;
+query results do not contain a complete history of asynchronous results or automatic recovery events.
+
+## Operations Diagnostics Interface
+
+`zv::robot::DiagnosticsSubscriber` subscribes to the robot's real-time aggregated diagnostic information.
+The message is compatible with ROS2 `diagnostic_msgs/msg/DiagnosticArray`.
+It uses an independent DDS communication instance and does not require `ChannelFactory` initialization. The domain ID and network interface must match the diagnostic publisher.
+
+| Item | Description |
+| ---- | ---- |
+| ROS2 Topic | `/diagnostics_agg` |
+| DDS Topic | `rt/diagnostics_agg` |
+| Message Type | `diagnostic_msgs::msg::dds_::DiagnosticArray_` |
+| Header | `<zv/robot/ops/diagnostics_subscriber.hpp>` |
+
+| Interface | Description |
+| ---- | ---- |
+| `Init(int32_t domain_id = 0, const std::string& network_interface = "")` | Initializes the subscription; domain ID 0 reads `ZV_DDS_DOMAIN_ID`, defaulting to 0 if unset; an empty network interface name enables automatic selection |
+| `Init(const std::string& config_path)` | Reads the domain ID and DDS configuration URI from a parameter file, using the same file format as the DDS communication interfaces |
+| `Take(DiagnosticArray_& output)` | Reads the latest frame without blocking; returns `true` when a valid message is received, or `false` and resets the output if there is no new message |
+| `GetPublisherCount()` | Returns the number of currently matched diagnostic publishers |
+| `Close()` | Closes the subscription; can be called repeatedly, and initialization can be performed again after closing |
+
+In `DiagnosticArray_`, `header_()` is the message header and `status_()` is the array of aggregated diagnostic items.
+Each message is a complete snapshot, so its new array should replace the previous one. An empty array means that the frame contains no diagnostic items;
+the absence of a new message must not be interpreted as fault recovery. The subscription uses best-effort reliability, volatile durability, and a history depth of one latest frame,
+and can receive live diagnostic messages from reliable or best-effort publishers.
+
+| DiagnosticStatus_ Field | Type | Description |
+| ---- | ---- | ---- |
+| `level_()` | `uint8_t` | 0: OK, 1: WARN, 2: ERROR, 3: STALE |
+| `name_()` | `std::string` | Diagnostic item name |
+| `message_()` | `std::string` | Status or fault description |
+| `hardware_id_()` | `std::string` | Hardware identifier |
+| `values_()` | `std::vector<KeyValue_>` | Additional information; use `key_()` and `value_()` to read each item's key and value |
+
+**Real-Time Diagnostics Subscription Example**
+
+```cpp
+#include <chrono>
+#include <iostream>
+#include <thread>
+#include <zv/robot/ops/diagnostics_subscriber.hpp>
+
+int main()
+{
+    // 1. Initialize an independent subscription; read the domain ID from the environment and select the network interface automatically
+    zv::robot::DiagnosticsSubscriber subscriber;
+    subscriber.Init(0);
+    // To use a configuration file, replace the previous line with:
+    // subscriber.Init(std::string("examples/config/dds.json"));
+
+    while (true) {
+        // 2. Read the latest aggregated snapshot, including OK, WARN, ERROR, and STALE items
+        diagnostic_msgs::msg::dds_::DiagnosticArray_ message;
+        if (subscriber.Take(message)) {
+            for (const auto& status : message.status_()) {
+                std::cout << "Level: " << static_cast<int>(status.level_())
+                          << ", name: " << status.name_()
+                          << ", description: " << status.message_()
+                          << ", hardware: " << status.hardware_id_() << '\n';
+                // 3. Print the diagnostic item's additional key/value information
+                for (const auto& value : status.values_())
+                    std::cout << "  " << value.key_() << ": " << value.value_() << '\n';
+            }
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+}
+```
+
 ## Low-Level Service Interfaces
 
 Low-level communication exchanges data between the user's PC and the robot using DDS.
@@ -648,75 +912,85 @@ Low-level DDS command example: examples/lowcmd/publisher.cpp
 
 This example uses the SDK to publish head control (HeadControl) and chassis velocity (Twist) DDS messages to rt/robot/external/head_control and rt/cmd_vel, respectively. Head control messages contain target yaw and pitch angles and a relative/absolute angle flag. Chassis messages contain linear and angular velocities.
 
-The example publishes at 1 Hz, with the head target defaulting to an absolute angle of 0° and the chassis velocity to zero. Head angles are in degrees; chassis linear velocity is in m/s and angular velocity is in rad/s. When interrupted with Ctrl+C or SIGTERM, it sends an additional zero-velocity message.
+The example supports either HeadControl or Twist, published once or periodically with a default period of 50 ms. Head angles are in degrees; chassis linear velocity is in m/s and angular velocity is in rad/s. Relative head angles are published only once; stopping continuous chassis velocity publication sends one additional zero-velocity message.
+
+The code below retains the example's message construction and publication logic, using `publish_head` to select head or chassis messages.
+`count` is the number of messages to send, defaulting to `1`; set it to `0` for continuous publication. `period_ms` is the publication interval in milliseconds.
 
 ```cpp
+#include <algorithm>
 #include <chrono>
 #include <csignal>
 #include <iostream>
-#include <string>
 #include <thread>
+#include <zv/idl/ros2/Twist_.hpp>
+#include <zv/idl/t4/HeadControl_.hpp>
 #include <zv/robot/channel/channel_publisher.hpp>
 
-#include "HeadControl_.hpp"
-#include "Twist_.hpp"
-
-// DDS topic name = rt + absolute ROS2 path.
-static const std::string HEAD_CONTROL_TOPIC = "rt/robot/external/head_control";
-static const std::string CMD_VEL_TOPIC = "rt/cmd_vel";
-static constexpr auto PUBLISH_PERIOD = std::chrono::seconds(1);
-
 static volatile std::sig_atomic_t keep_running = 1;
-
 static void HandleSignal(int) { keep_running = 0; }
+
+// Wait in short intervals so a stop signal can promptly end the publication loop
+static void Wait(int period_ms)
+{
+    for (int elapsed = 0; keep_running && elapsed < period_ms; elapsed += 10)
+        std::this_thread::sleep_for(std::chrono::milliseconds(std::min(10, period_ms - elapsed)));
+}
 
 using namespace zv::robot;
 
 int main()
 {
-    std::signal(SIGINT, HandleSignal);
-    std::signal(SIGTERM, HandleSignal);
+    // 1. Select the message type, count, and period; send one head command by default
+    const bool publish_head = true;
+    const int count = 1;
+    const int period_ms = 50;
 
-    // 1. Initialize the channel factory for global communication resources
-    ChannelFactory::Instance()->Init(0);
-
-    // 2. Create publishers for the topics and message types
-    ChannelPublisher<robot_interfaces::msg::dds_::HeadControl_> head_publisher(HEAD_CONTROL_TOPIC);
-    ChannelPublisher<geometry_msgs::msg::dds_::Twist_> velocity_publisher(CMD_VEL_TOPIC);
-
-    // 3. Initialize the communication channels
-    head_publisher.InitChannel();
-    velocity_publisher.InitChannel();
-
-    // 4. Construct a HeadControl_ message and set the head control parameters
-    // Adjust the target angles (degrees) as needed. Use absolute angles for continuous publishing to avoid accumulation.
+    // 2. Construct the head message; yaw and pitch are in degrees, and relative angles require count=1
     robot_interfaces::msg::dds_::HeadControl_ head;
     head.yaw_(0.0f);
     head.pitch_(0.0f);
     head.is_relative_(false);
+    if (publish_head && head.is_relative_() && count != 1) return 1;
 
-    // 5. Construct a Twist_ message and set the chassis control parameters
-    // Adjust the chassis velocities as needed: linear.x/y in m/s and angular.z in rad/s.
-    // Leave all other components at zero.
+    // 3. Construct the chassis message; linear velocity is in m/s, angular velocity is in rad/s, and other components remain zero
     geometry_msgs::msg::dds_::Twist_ velocity;
     velocity.linear_().x_(0.0);
     velocity.linear_().y_(0.0);
     velocity.angular_().z_(0.0);
 
-    std::cout << "Publishing " << HEAD_CONTROL_TOPIC << " and " << CMD_VEL_TOPIC << " at 1 Hz; press Ctrl+C to stop."
-              << std::endl;
+    // 4. Initialize communication; ChannelFactory can also be initialized from a JSON configuration file
+    ChannelFactory::Instance()->Init(0);
+    // To use a configuration file, replace the previous line with:
+    // ChannelFactory::Instance()->Init(std::string("examples/config/dds.json"));
+    std::signal(SIGINT, HandleSignal);
+    std::signal(SIGTERM, HandleSignal);
 
-    auto next_publish_time = std::chrono::steady_clock::now();
-    while (keep_running != 0) {
-        // 6. Publish messages to the topics
-        head_publisher.Write(head);
-        velocity_publisher.Write(velocity);
-        next_publish_time += PUBLISH_PERIOD;
-        std::this_thread::sleep_until(next_publish_time);
+    if (publish_head) {
+        // 5. Create only the selected publisher, wait for DDS discovery, and send the specified number of head commands
+        ChannelPublisher<robot_interfaces::msg::dds_::HeadControl_> publisher("rt/robot/external/head_control");
+        publisher.InitChannel();
+        Wait(500);
+        for (int sent = 0; keep_running && (count == 0 || sent < count); ++sent) {
+            publisher.Write(head);
+            if (count == 0 || sent + 1 < count) Wait(period_ms);
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        publisher.CloseChannel();
+    } else {
+        // 6. When chassis messages are selected, use the same publication count and period
+        ChannelPublisher<geometry_msgs::msg::dds_::Twist_> publisher("rt/cmd_vel");
+        publisher.InitChannel();
+        Wait(500);
+        for (int sent = 0; keep_running && (count == 0 || sent < count); ++sent) {
+            publisher.Write(velocity);
+            if (count == 0 || sent + 1 < count) Wait(period_ms);
+        }
+        // 7. Send one additional zero-velocity message when continuous publication ends or a stop signal is received
+        if (count == 0 || !keep_running) publisher.Write(geometry_msgs::msg::dds_::Twist_{});
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        publisher.CloseChannel();
     }
-
-    velocity_publisher.Write(geometry_msgs::msg::dds_::Twist_{});
-    std::cout << "Stopped; sent zero velocity." << std::endl;
     return 0;
 }
 ```
@@ -859,7 +1133,7 @@ int main()
     ChannelSubscriber<yesense_interface::msg::dds_::NavAll_> subscriber(NAV_ALL_TOPIC);
 
     // 4. Initialize the channel and register the callback
-    subscriber.InitChannel(Handler);
+    subscriber.InitChannel(Handler, 10, true);
 
     // 5. Keep the process running; the subscriber receives messages and invokes Handler on an internal thread
     while (true) {
@@ -870,7 +1144,7 @@ int main()
 }
 ```
 
-> This example corresponds to the `imuNavSubscriber` build target in `examples/CMakeLists.txt`, which produces the `imuNavSubscriber` executable.
+> In `examples/CMakeLists.txt`, this example has the `imuNavSubscriber` build target, which produces the `imuNavSubscriber` executable.
 
 **DDS Camera Preview Example**
 
@@ -896,6 +1170,8 @@ int main()
     // 2. Create and initialize CameraSubscriber with the camera names and topics
     zv::robot::CameraSubscriber subscriber;
     subscriber.Init(0, "", topics);
+    // To use a configuration file, replace the previous line with:
+    // subscriber.Init("examples/config/dds.json", topics);
 
     // 3. Continuously poll the latest compressed image from each camera
     zv::robot::CameraFrame frame;
@@ -1004,7 +1280,7 @@ The following message types are in the `robot_interfaces::msg::dds_` namespace. 
 | Structure | Key Fields |
 | --------- | ---------- |
 | **BatteryInfo_** | Total voltage, current, SOC, lifetime, temperature, voltage/temperature statistics, MOS state, battery state, and current-limit/protection information |
-| **DriverStatus_** | Drive state (`STATUS_*`), online status, hardware enable state, fault state, total/active/faulty joint counts, and faulty joint names |
+| **DriverStatus_** | Drive state (`STATUS_*`), online status, fault state, total/active/faulty joint counts, and faulty joint names |
 | **SystemStatus_** | CPU/memory/disk utilization and temperature, battery voltage/current/SOC, volume, mute status, and threshold warning flags |
 | **RlManagerStatus_** | Node online status, model loading/readiness, inference activity/errors, active model, model type, inference frequency, and most recent inference duration |
 | **SpeakStatus_** | Playback state (`STATE_IDLE/PLAYING/PAUSED`), current text, and queue length |

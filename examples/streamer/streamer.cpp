@@ -10,6 +10,8 @@
 #include <zv/robot/channel/channel_factory.hpp>
 #include <zv/robot/media/media_client.hpp>
 
+#include "../dds_options.hpp"
+
 using namespace zv::robot;
 
 std::vector<std::string> stringToStringVector(const std::string & str)
@@ -70,7 +72,6 @@ bool printControlResult(const std::string & command, int32_t ret, bool success, 
 int main(int argc, char const * argv[])
 {
     std::map<std::string, std::string> args = {
-        {"domain_id",         "0"},
         {"network_interface", "" },
         {"trro_config_file",  "" }
     };
@@ -97,7 +98,7 @@ int main(int argc, char const * argv[])
     }
 
     if (argc == 1 || args.count("help")) {
-        std::cout << "Usage: streamer [--domain_id=<id>] [--network_interface=<iface>] "
+        std::cout << "Usage: streamer [--network_interface=<iface>] [--use_config] "
                      "[--trro_config_file=<path>] <command[=args]>\n"
                   << "\n"
                   << "查询命令:\n"
@@ -115,7 +116,7 @@ int main(int argc, char const * argv[])
                   << "\n"
                   << "示例:\n"
                   << "  streamer --ping\n"
-                  << "  streamer --domain_id=1 --network_interface=eth0 --ping\n"
+                  << "  ZV_DDS_DOMAIN_ID=1 streamer --network_interface=eth0 --ping\n"
                   << "  streamer --start_stream=\"head local\"\n"
                   << "  streamer --start_stream=\"head chest both\"\n"
                   << "  streamer --stop_stream=\"head local\"\n"
@@ -132,19 +133,7 @@ int main(int argc, char const * argv[])
         return 1;
     }
 
-    int32_t domain_id = 0;
-    try {
-        size_t parsed_size = 0;
-        domain_id = std::stoi(args.at("domain_id"), &parsed_size);
-        if (parsed_size != args.at("domain_id").size() || domain_id < 0 || domain_id > 232) {
-            throw std::out_of_range("domain ID outside ROS2 range");
-        }
-    } catch (const std::exception & error) {
-        std::cerr << "Invalid domain_id: " << args.at("domain_id") << " (" << error.what() << ")" << std::endl;
-        return 1;
-    }
-
-    ChannelFactory::Instance()->Init(domain_id, args.at("network_interface"));
+    example::InitDds(args.at("network_interface"), args.count("use_config") != 0);
 
     MediaClient client;
     client.Init();
@@ -154,7 +143,8 @@ int main(int argc, char const * argv[])
     for (const auto & arg_pair : args) {
         const std::string & command = arg_pair.first;
         const std::string & param = arg_pair.second;
-        if (command == "domain_id" || command == "network_interface" || command == "trro_config_file") {
+        if (command == "use_config" || command == "network_interface" ||
+            command == "trro_config_file") {
             continue;
         }
 

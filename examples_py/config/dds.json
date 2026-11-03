@@ -1,0 +1,4 @@
+{
+  "domain_id": 10,
+  "dds_uri": "file://./cyclonedds_localhost.xml"
+}

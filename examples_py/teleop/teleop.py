@@ -3,6 +3,8 @@ import pathlib as _sdk_pathlib
 import sys as _sdk_sys
 _sdk_sys.path.insert(0, str(_sdk_pathlib.Path(__file__).resolve().parents[2] / "libs" / "python"))
 
+DDS_CONFIG_PATH = _sdk_pathlib.Path(__file__).resolve().parents[1] / "config/dds.json"
+
 import argparse
 import math
 import json
@@ -13,8 +15,9 @@ import zv_robot_sdk_python as zv
 def main():
     parser = argparse.ArgumentParser(description="Teleop services via zv_api DDS-RPC")
     parser.add_argument("command", choices=["ping", "start", "stop", "get-device-list", "switch-devices"])
-    parser.add_argument("--domain-id", type=int, default=0)
     parser.add_argument("--network-interface", default="")
+    parser.add_argument("--use-config", "--use_config", action="store_true",
+                        help="use examples_py/config/dds.json; uses domain ID and network settings from the file")
     parser.add_argument("--timeout", type=float, default=30.0)
     for name in ("source", "task-id", "device-id", "broker-host", "product-id",
                  "peripheral-type", "arm-mode", "takeover-mode", "reserve"):
@@ -28,8 +31,8 @@ def main():
         for name in ("source", "task_id"):
             if not getattr(args, name).strip():
                 parser.error(f"--{name.replace('_', '-')} is required and must not be blank")
-    if not 0 <= args.domain_id <= 232 or not math.isfinite(args.timeout) or args.timeout <= 0:
-        parser.error("invalid domain ID or timeout")
+    if not math.isfinite(args.timeout) or args.timeout <= 0:
+        parser.error("invalid timeout")
     if not -(2**31) <= args.header_sec < 2**31 or not 0 <= args.header_nanosec < 10**9:
         parser.error("invalid header time")
     if not -(2**31) <= args.broker_port < 2**31:
@@ -66,7 +69,10 @@ def main():
             switch_request.devices_info = infos
         except ValueError as error:
             parser.error(f"invalid --devices-info: {error}")
-    zv.ChannelFactory.Instance().Init(args.domain_id, args.network_interface)
+    if args.use_config:
+        zv.ChannelFactory.Instance().Init(str(DDS_CONFIG_PATH))
+    else:
+        zv.ChannelFactory.Instance().Init(0, args.network_interface)
     client = zv.TeleopClient()
     client.Init()
     client.SetTimeout(args.timeout)

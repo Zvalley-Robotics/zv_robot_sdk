@@ -41,6 +41,7 @@
 #include <vector>
 #include <zv/robot/channel/channel_publisher.hpp>
 
+#include "../dds_options.hpp"
 #include "ArmAutoMsg_.hpp"
 #include "HeadAutoMsg_.hpp"
 #include "Twist_.hpp"
@@ -102,7 +103,8 @@ static void PrintHelp(std::ostream & os)
           "  --arm_pose=\"both 左臂6值 右臂6值\"  "
           "双臂独立目标；使用各臂当前工作坐标系\n"
           "  --release=\"all|head|waist|arm|cmd_vel\"  释放控制权\n"
-          "  --actuate                       实际下发；缺省为演练（仅打印）\n";
+          "  --actuate                       实际下发；缺省为演练（仅打印）\n"
+          "  --use_config                    使用 examples/config/dds.json\n";
 }
 
 // 解析空白分隔的浮点列表，要求恰好 expected 个
@@ -145,6 +147,7 @@ static bool ParseFloats(const std::string & value, size_t expected, std::vector<
 
 struct Options
 {
+    bool use_config = false;
     bool actuate = false;
     std::string command;  // 空 / help / cmd_vel / head / waist / arm / release
     // arm_pose 为新增的手臂末端位姿命令。
@@ -181,6 +184,14 @@ static bool ParseArguments(int argc, char ** argv, Options & opt, std::string & 
         const bool has_value = (eq != std::string::npos);
         const std::string value = has_value ? StripQuotes(body.substr(eq + 1)) : "";
 
+        if (key == "use_config") {
+            if (has_value) {
+                err = "--use_config 不接受取值";
+                return false;
+            }
+            opt.use_config = true;
+            continue;
+        }
         if (key == "actuate") {
             if (has_value) {
                 err = "--actuate 不接受取值";
@@ -502,7 +513,7 @@ int main(int argc, char ** argv)
 
     // 初始化 DDS（domain 0）
     if (opt.command != "arm_pose" || g_actuate) {
-        ChannelFactory::Instance()->Init(0);
+        example::InitDds("", opt.use_config);
     }
 
     if (opt.command == "cmd_vel") {

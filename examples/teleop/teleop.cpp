@@ -6,13 +6,15 @@
 #include <zv/robot/channel/channel_factory.hpp>
 #include <zv/robot/teleop/teleop_client.hpp>
 
+#include "../dds_options.hpp"
+
 using namespace zv::robot;
 
 int main(int argc, char ** argv)
 {
     try {
+        bool use_config = false;
         std::map<std::string, std::string> args = {
-            {"domain_id",         "0" },
             {"network_interface", ""  },
             {"timeout",           "30"},
             {"source",            ""  },
@@ -32,6 +34,10 @@ int main(int argc, char ** argv)
         std::string command;
         for (int i = 1; i < argc; ++i) {
             const std::string arg = argv[i];
+            if (arg == "--use_config") {
+                use_config = true;
+                continue;
+            }
             if (arg == "--help") {
                 command = "help";
                 break;
@@ -51,8 +57,8 @@ int main(int argc, char ** argv)
         if (argc == 1 || command == "help") {
             std::cout << "Usage: teleop "
                          "--start|--stop|--ping|--get_device_list|--switch_devices "
-                         "[--name=value ...]\n"
-                      << "Options: domain_id, network_interface, timeout, source, "
+                         "[--use_config] [--name=value ...]\n"
+                      << "Options: network_interface, timeout, source, "
                          "task_id,\n"
                       << "device_id, broker_host, broker_port, product_id, "
                          "peripheral_type, arm_mode,\n"
@@ -80,7 +86,6 @@ int main(int argc, char ** argv)
                 throw std::invalid_argument(std::string("invalid ") + key);
             return value;
         };
-        const auto domain = integer("domain_id", 0, 232);
         size_t end = 0;
         const auto timeout = std::stof(args.at("timeout"), &end);
         if (end != args.at("timeout").size() || !std::isfinite(timeout) || timeout <= 0)
@@ -108,7 +113,7 @@ int main(int argc, char ** argv)
                 switch_request.devices_info.push_back(
                     {device.at("device_type").get<std::string>(), device.at("device_id").get<std::string>()});
         }
-        ChannelFactory::Instance()->Init(static_cast<int32_t>(domain), args.at("network_interface"));
+        example::InitDds(args.at("network_interface"), use_config);
         TeleopClient client;
         client.Init();
         client.SetTimeout(timeout);

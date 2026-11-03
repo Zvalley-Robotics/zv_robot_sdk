@@ -10,6 +10,8 @@
 #include <thread>
 #include <zv/robot/media/camera_subscriber.hpp>
 
+#include "../dds_options.hpp"
+
 namespace
 {
 volatile std::sig_atomic_t running = 1;
@@ -19,15 +21,19 @@ void stop(int) { running = 0; }
 int main(int argc, char ** argv)
 {
     try {
-        int domain = 0;
+        bool use_config = false;
         std::string interface, output_dir;
         double duration = 0;
         std::map<std::string, std::string> topics;
         for (int i = 1; i < argc; ++i) {
             std::string arg = argv[i];
+            if (arg == "--use_config") {
+                use_config = true;
+                continue;
+            }
             if (arg == "--help") {
-                std::cout << "Usage: cameraPreview [--domain_id=0] "
-                             "[--network_interface=eth0]\n"
+                std::cout << "Usage: cameraPreview "
+                             "[--network_interface=eth0] [--use_config]\n"
                              "  "
                              "[--camera=head=rt/media/camera/head/color/"
                              "image_raw/compressed] ...\n"
@@ -41,11 +47,7 @@ int main(int argc, char ** argv)
             const auto pos = arg.find('=');
             if (pos == std::string::npos) throw std::invalid_argument("expected --option=value");
             const auto key = arg.substr(0, pos), value = arg.substr(pos + 1);
-            if (key == "--domain_id") {
-                size_t parsed = 0;
-                domain = std::stoi(value, &parsed);
-                if (parsed != value.size()) throw std::invalid_argument("invalid domain ID");
-            } else if (key == "--network_interface")
+            if (key == "--network_interface")
                 interface = value;
             else if (key == "--output_dir")
                 output_dir = value;
@@ -67,7 +69,11 @@ int main(int argc, char ** argv)
             for (const auto * name : {"head", "left", "right", "chest"})
                 topics[name] = std::string("rt/media/camera/") + name + "/color/image_raw/compressed";
         zv::robot::CameraSubscriber subscriber;
-        subscriber.Init(domain, interface, topics);
+        if (use_config) {
+            subscriber.Init(example::DdsConfigPath(), topics);
+        } else {
+            subscriber.Init(0, interface, topics);
+        }
         if (!output_dir.empty()) std::filesystem::create_directories(output_dir);
         std::signal(SIGINT, stop);
         std::signal(SIGTERM, stop);

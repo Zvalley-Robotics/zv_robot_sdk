@@ -7,6 +7,7 @@
 namespace zv::common
 {
 std::string makeDDSConfig(int domainId, const std::string & network_interface);
+nlohmann::json readDDSConfigFile(const std::string & config_path);
 
 class DdsFactoryModel
 {
@@ -15,6 +16,8 @@ public:
     ~DdsFactoryModel();
 
     void Init(uint32_t domain_id, const std::string & network_interface);
+    void Init(const std::string & config_path);
+    void Init(const char * config_path) { Init(std::string(config_path)); }
     void Init(const nlohmann::json & config);
 
     template <typename MSG>

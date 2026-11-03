@@ -5,6 +5,8 @@ import pathlib as _sdk_pathlib
 import sys as _sdk_sys
 _sdk_sys.path.insert(0, str(_sdk_pathlib.Path(__file__).resolve().parents[2] / "libs" / "python"))
 
+DDS_CONFIG_PATH = _sdk_pathlib.Path(__file__).resolve().parents[1] / "config/dds.json"
+
 import argparse
 import math
 from pathlib import Path
@@ -15,8 +17,9 @@ import time
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--domain-id", "--domain_id", type=int, default=0)
     parser.add_argument("--network-interface", "--network_interface", default="")
+    parser.add_argument("--use-config", "--use_config", action="store_true",
+                        help="use examples_py/config/dds.json; uses domain ID and network settings from the file")
     parser.add_argument("--camera", action="append", default=[], metavar="NAME=DDS_TOPIC")
     parser.add_argument("--output-dir", type=Path, help="save the latest <camera>.jpg")
     parser.add_argument("--duration", type=float, default=0, help="seconds; 0 runs until Ctrl-C")
@@ -43,7 +46,10 @@ def main():
     signal.signal(signal.SIGINT, stop)
     signal.signal(signal.SIGTERM, stop)
     try:
-        subscriber.Init(args.domain_id, args.network_interface, topics)
+        if args.use_config:
+            subscriber.Init(str(DDS_CONFIG_PATH), topics)
+        else:
+            subscriber.Init(0, args.network_interface, topics)
         if args.output_dir:
             args.output_dir.mkdir(parents=True, exist_ok=True)
         counts = dict.fromkeys(topics, 0)

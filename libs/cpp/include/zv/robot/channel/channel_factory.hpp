@@ -19,6 +19,8 @@ public:
     static ChannelFactory * Instance();
 
     void Init(int32_t domain_id, const std::string & network_interface = "");
+    void Init(const std::string & config_path);
+    void Init(const char * config_path) { Init(std::string(config_path)); }
     void Init(const nlohmann::json & config);
 
     void Release();

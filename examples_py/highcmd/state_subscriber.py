@@ -7,15 +7,16 @@ import signal
 import sys
 import threading
 
+DDS_CONFIG_PATH = pathlib.Path(__file__).resolve().parents[1] / "config/dds.json"
+
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
-    parser.add_argument("--domain_id", type=int, default=100)
     parser.add_argument("--network_interface", default="")
+    parser.add_argument("--use-config", "--use_config", action="store_true",
+                        help="use examples_py/config/dds.json; uses domain ID and network settings from the file")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
-    if not 0 <= args.domain_id <= 232:
-        parser.error("domain_id must be in 0..232")
     return args
 
 
@@ -44,7 +45,10 @@ def main():
                   f"active_mode: {data['active_mode']}, active_rl_model: {data['active_rl_model']}",
                   flush=True)
 
-    zv.ChannelFactory.Instance().Init(args.domain_id, args.network_interface)
+    if args.use_config:
+        zv.ChannelFactory.Instance().Init(str(DDS_CONFIG_PATH))
+    else:
+        zv.ChannelFactory.Instance().Init(0, args.network_interface)
     subscriber = zv.ChannelSubscriber_RobotState_("rt/robot/state")
     try:
         subscriber.InitChannel(handler, 5, False)

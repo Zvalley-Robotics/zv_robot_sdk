@@ -15,6 +15,8 @@ import time
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
+    parser.add_argument("--use-config", "--use_config", action="store_true",
+                        help="use examples_py/config/dds.json")
     parser.add_argument("--actuate", action="store_true")
     commands = parser.add_mutually_exclusive_group(required=True)
     for name in ("cmd_vel", "head", "waist", "arm", "release"):
@@ -45,8 +47,8 @@ def parse_args(argv=None):
         parser.error("参数必须为数值")
     if len(args.values) != expected or not all(math.isfinite(v) for v in args.values):
         parser.error(f"需要 {expected} 个有限数值")
-    if args.command == "arm_pose" and any(abs(v) > 3.4028234663852886e38 for v in args.values):
-        parser.error("位姿必须为有限 float32 数值")
+    if any(abs(v) > 3.4028234663852886e38 for v in args.values):
+        parser.error("参数必须为有限 float32 数值")
     return args
 
 
@@ -128,7 +130,11 @@ def run(args, stopped):
 
     import zv_robot_sdk_python as zv
 
-    zv.ChannelFactory.Instance().Init(0)
+    if getattr(args, "use_config", False):
+        config = _sdk_pathlib.Path(__file__).resolve().parents[1] / "config/dds.json"
+        zv.ChannelFactory.Instance().Init(str(config))
+    else:
+        zv.ChannelFactory.Instance().Init(0)
     commands = make_commands(zv, args)
     for typename, topic, message, frames in commands:
         if stopped.is_set():

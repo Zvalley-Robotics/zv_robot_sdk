@@ -12,6 +12,8 @@
 #include <zv/robot/loco/loco_client.hpp>
 #include <zv/third_party/nlohmann_json/json.hpp>
 
+#include "../dds_options.hpp"
+
 namespace
 {
 
@@ -27,6 +29,7 @@ struct Options
     std::string command;
     std::string value;
     bool relative{false};
+    bool useConfig{false};
 };
 
 void handleSignal(int) { keepRunning = 0; }
@@ -34,7 +37,7 @@ void handleSignal(int) { keepRunning = 0; }
 void printHelp()
 {
     constexpr const char * HELP_TEXT =
-        R"(Usage: loco [--network_interface=<iface>] <command[=args]>
+        R"(Usage: loco [--network_interface=<iface>] [--use_config] <command[=args]>
 
 查询命令:
   --robot_state                    查询机器人当前运动状态、模型
@@ -118,6 +121,14 @@ bool parseArguments(int argc, const char * const argv[], Options & options, std:
                 return false;
             }
             options.networkInterface = value;
+            continue;
+        }
+        if (key == "use_config") {
+            if (separator != std::string::npos) {
+                error = "--use_config 不接受参数";
+                return false;
+            }
+            options.useConfig = true;
             continue;
         }
         if (key == "relative") {
@@ -290,7 +301,7 @@ int main(int argc, const char * argv[])
         }
     }
 
-    zv::robot::ChannelFactory::Instance()->Init(0, options.networkInterface);
+    example::InitDds(options.networkInterface, options.useConfig);
 
     zv::robot::LocoClient client;
     client.Init();

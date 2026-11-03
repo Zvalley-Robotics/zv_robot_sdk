@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="800" height="533" viewBox="0 0 800 533">
+  <title>nav</title>
+  <desc>Navigation state diagram using the same node size and whitespace proportions as the supplied INIT/DAMP reference.</desc>
+
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10"
+            refX="8.5" refY="5" orient="auto"
+            markerUnits="userSpaceOnUse">
+      <path d="M 0,0 L 10,5 L 0,10 z" fill="#626262"/>
+    </marker>
+  </defs>
+
+  <rect width="800" height="533" fill="#ffffff"/>
+
+  <!-- State nodes: 170 px diameter -->
+  <g fill="#7886D8" stroke="#555555" stroke-width="3.5">
+    <circle cx="220" cy="120" r="85"/>
+    <circle cx="620" cy="120" r="85"/>
+    <circle cx="220" cy="413" r="85"/>
+    <circle cx="620" cy="413" r="85"/>
+  </g>
+
+  <!-- State labels -->
+  <g fill="#ffffff" font-family="Arial, Helvetica, sans-serif"
+     font-size="22" text-anchor="middle" dominant-baseline="middle">
+    <text x="220" y="120">IDLE</text>
+    <text x="620" y="120">NAV_READY</text>
+    <text x="220" y="413">NAV_PAUSED</text>
+    <text x="620" y="413">NAV_RUNNING</text>
+  </g>
+
+  <!-- State transition arrows only -->
+  <g fill="none" stroke="#626262" stroke-width="3.2"
+     stroke-linecap="round" marker-end="url(#arrow)">
+    <!-- IDLE -> NAV_READY -->
+    <path d="M 305,120 L 535,120"/>
+
+    <!-- NAV_READY -> NAV_RUNNING -->
+    <path d="M 595,201.3 L 595,331"/>
+
+    <!-- NAV_RUNNING -> NAV_READY -->
+    <path d="M 645,331 L 645,201.3"/>
+
+    <!-- NAV_RUNNING -> NAV_PAUSED -->
+    <path d="M 537.4,393 L 302.6,393"/>
+
+    <!-- NAV_PAUSED -> NAV_RUNNING -->
+    <path d="M 302.6,433 L 537.4,433"/>
+  </g>
+</svg>

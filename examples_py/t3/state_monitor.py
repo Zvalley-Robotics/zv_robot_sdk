@@ -29,6 +29,8 @@ CATALOG = (
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
+    parser.add_argument("--use-config", "--use_config", action="store_true",
+                        help="use examples_py/config/dds.json")
     parser.add_argument("--topics", default=None)
     parser.add_argument("--hz", default="1")
     args = parser.parse_args(argv)
@@ -96,7 +98,11 @@ def format_message(name, count, msg):
 def run(args, stopped):
     import zv_robot_sdk_python as zv
 
-    zv.ChannelFactory.Instance().Init(0)
+    if getattr(args, "use_config", False):
+        config = _sdk_pathlib.Path(__file__).resolve().parents[1] / "config/dds.json"
+        zv.ChannelFactory.Instance().Init(str(config))
+    else:
+        zv.ChannelFactory.Instance().Init(0)
     subscribers = []
     try:
         for name, section, typename in args.selected:
