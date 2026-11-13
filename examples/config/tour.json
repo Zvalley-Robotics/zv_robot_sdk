@@ -1,0 +1,193 @@
+{
+    "scene_id": "2112734270341910528",
+    "navigation_model": "t4_walk",
+    "initialize_localization": true,
+    "rpc_timeout_s": 10,
+    "audio_timeout_s": 120,
+    "localization_timeout_s": 120,
+    "navigation_timeout_s": 300,
+    "action_timeout_s": 60,
+    "poll_interval_s": 0.5,
+    "action_options": {
+        "t4_zl2": "交互型解释(表现逻辑性较强的思考)（23.76s）",
+        "t4_zl1": "介绍讲解(无展示物)（12.16s）",
+        "t4_zl5": "右后方介绍（13.50s）",
+        "t4_zl4": "正后方介绍(先右手，后左手)（12.08s）",
+        "t4_zl6": "左后方介绍（13.50s）"
+    },
+    "waypoints": [
+        {
+            "name": "点位1",
+            "coordinateX": 3.888884351242676,
+            "coordinateY": -5.203282964374892,
+            "coordinateA": 1.5707963267948966,
+            "enabled": true,
+            "wav_file": "/opt/app/audio/tour/点位1.wav",
+            "actions": [
+                {"model": "t4_zl1", "delay_s": 0}
+            ],
+            "wait_after_s": 0
+        },
+        {
+            "name": "点位2",
+            "coordinateX": 2.519747371474383,
+            "coordinateY": -4.016697581909038,
+            "coordinateA": 1.5707963267948966,
+            "enabled": true,
+            "wav_file": "/opt/app/audio/tour/点位2.wav",
+            "actions": [
+                {"model": "t4_zl6", "delay_s": 0}
+            ],
+            "wait_after_s": 0
+        },
+        {
+            "name": "点位3",
+            "coordinateX": 1.1506103917060904,
+            "coordinateY": -3.195215394048062,
+            "coordinateA": 1.5707963267948966,
+            "enabled": true,
+            "wav_file": "/opt/app/audio/tour/点位3.wav",
+            "actions": [
+                {"model": "t4_zl6", "delay_s": 0}
+            ],
+            "wait_after_s": 0
+        },
+        {
+            "name": "点位4",
+            "coordinateX": -0.4010781853646414,
+            "coordinateY": -2.008630011582208,
+            "coordinateA": 1.5707963267948966,
+            "enabled": true,
+            "wav_file": "/opt/app/audio/tour/点位4.wav",
+            "actions": [
+                {"model": "t4_zl6", "delay_s": 0}
+            ],
+            "wait_after_s": 0
+        },
+        {
+            "name": "点位5",
+            "coordinateX": -2.409145755691471,
+            "coordinateY": -0.5482172331626962,
+            "coordinateA": 1.5707963267948966,
+            "enabled": true,
+            "wav_file": "/opt/app/audio/tour/点位5.wav",
+            "actions": [
+                {"model": "t4_zl1", "delay_s": 0},
+                {"model": "t4_zl2", "delay_s": 14.76}
+            ],
+            "wait_after_s": 0
+        },
+        {
+            "name": "点位6",
+            "coordinateX": -4.691040721971959,
+            "coordinateY": 1.094747142559255,
+            "coordinateA": 1.5707963267948966,
+            "enabled": true,
+            "wav_file": "/opt/app/audio/tour/点位6.wav",
+            "actions": [
+                {"model": "t4_zl6", "delay_s": 0},
+                {"model": "t4_zl2", "delay_s": 15.04}
+            ],
+            "wait_after_s": 0
+        },
+        {
+            "name": "点位7",
+            "coordinateX": -7.1554872855548854,
+            "coordinateY": 3.0115389142348645,
+            "coordinateA": 1.5707963267948966,
+            "enabled": true,
+            "wav_file": "/opt/app/audio/tour/点位7.wav",
+            "actions": [
+                {"model": "t4_zl6", "delay_s": 0}
+            ],
+            "wait_after_s": 0
+        },
+        {
+            "name": "点位8",
+            "coordinateX": -9.619933849137812,
+            "coordinateY": 4.563227491305597,
+            "coordinateA": 1.5707963267948966,
+            "enabled": true,
+            "wav_file": "/opt/app/audio/tour/点位9.wav",
+            "actions": [
+                {"model": "t4_zl6", "delay_s": 0},
+                {"model": "t4_zl2", "delay_s": 18.68}
+            ],
+            "wait_after_s": 0
+        },
+        {
+            "name": "点位9",
+            "coordinateX": -11.536725620813423,
+            "coordinateY": 5.658537075120231,
+            "coordinateA": 1.7104226669544422,
+            "enabled": true,
+            "wav_file": "/opt/app/audio/tour/点位8.wav",
+            "actions": [
+                {"model": "t4_zl1", "delay_s": 0},
+                {"model": "t4_zl2", "delay_s": 15.35}
+            ],
+            "wait_after_s": 0
+        },
+        {
+            "name": "点位20",
+            "coordinateX": -16.374342949328057,
+            "coordinateY": 14.055910551032426,
+            "coordinateA": -1.5009831567151233,
+            "enabled": true,
+            "wav_file": "/opt/app/audio/tour/点位20.wav",
+            "actions": [
+                {"model": "t4_zl4", "delay_s": 0}
+            ],
+            "wait_after_s": 0
+        },
+        {
+            "name": "点位21",
+            "coordinateX": -9.437382251835373,
+            "coordinateY": 9.58339641712267,
+            "coordinateA": -1.6755160819145563,
+            "enabled": true,
+            "wav_file": "/opt/app/audio/tour/点位21.wav",
+            "actions": [
+                {"model": "t4_zl1", "delay_s": 0}
+            ],
+            "wait_after_s": 0
+        },
+        {
+            "name": "点位22",
+            "coordinateX": -3.687006936808544,
+            "coordinateY": 5.5672612764690115,
+            "coordinateA": -1.6755160819145563,
+            "enabled": true,
+            "wav_file": "/opt/app/audio/tour/点位22.wav",
+            "actions": [
+                {"model": "t4_zl1", "delay_s": 0}
+            ],
+            "wait_after_s": 0
+        },
+        {
+            "name": "点位23",
+            "coordinateX": -1.222560373225617,
+            "coordinateY": 3.92429690074706,
+            "coordinateA": -1.6580627893946132,
+            "enabled": true,
+            "wav_file": "/opt/app/audio/tour/点位23.wav",
+            "actions": [
+                {"model": "t4_zl1", "delay_s": 0}
+            ],
+            "wait_after_s": 0
+        },
+        {
+            "name": "点位24",
+            "coordinateX": 3.3412295593353587,
+            "coordinateY": 1.0034713439080354,
+            "coordinateA": -1.6755160819145563,
+            "enabled": true,
+            "wav_file": "/opt/app/audio/tour/点位24.wav",
+            "actions": [
+                {"model": "t4_zl1", "delay_s": 0},
+                {"model": "t4_zl2", "delay_s": 15.20}
+            ],
+            "wait_after_s": 0
+        }
+    ]
+}

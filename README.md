@@ -120,16 +120,17 @@ ChannelFactory 提供单例，用于创建基于 DDS Topic 的通道。使用前
 
 ```json
 {
-  "domain_id": 0,
+  "domain_id": 10,
   "dds_uri": "file://./cyclonedds_localhost.xml"
 }
 ```
 
 `cyclonedds_localhost.xml` 与 JSON 文件放在同一目录。
 
-示例配置位于 `examples/config/`，包含 JSON 和 XML 文件。
+示例配置位于 `examples/config/`，包含 JSON 和 XML 文件。随附 `dds.json` 的域 id 为 `10`，
+XML 绑定本机 `lo` 网卡并使用单播，适用于同主机通信；跨主机时需按实际网络修改配置。
 
-示例的域 id 通过环境变量 `ZV_DDS_DOMAIN_ID` 设置，未设置时使用域 0；使用配置文件时以文件中的域 id 为准。
+网卡方式初始化时，域 id 通过环境变量 `ZV_DDS_DOMAIN_ID` 设置，未设置时使用域 0；使用配置文件时以文件中的域 id 为准。
 
 C++ 配置文件初始化：
 
@@ -182,10 +183,10 @@ zv::robot::ChannelFactory::Instance()->Init(std::string("examples/config/dds.jso
 
 | 函数名     | Write |
 |-----------|------|
-| 函数原型   | bool Write(const MSG& msg,int64_t wait_microsec =0) |
+| 函数原型   | void Write(const MSG& msg,int64_t wait_microsec =0) |
 | 功能概述   | 发送指定类型的消息 |
 | 参数       | msg：发送类型为 MSG 的消息 |
-| 返回值     | true：发送成功；false：发送失败 |
+| 返回值     | 无 |
 | 备注       | 无 |
 
 **DDS 发布示例 - Hello World**
@@ -255,7 +256,7 @@ int main()
 
 | 函数名     | GetLastDataAvailableTime |
 |-----------|------|
-| 函数原型   | int64_t GetLastDataAvailableTime() |
+| 函数原型   | int64_t GetLastDataAvailableTime() const |
 | 功能概述   | 获取最后一次收到消息的时间 |
 | 参数       | 无 |
 | 返回值     | Channel 未初始化时返回-1；否则返回从系统启动开始单调递增的时间戳，精确到微秒 |
@@ -369,6 +370,12 @@ uint8 priority
 | model       | `switch_model` | 模型名   | 切换动作模型                                               |
 | model       | `motion_stop`  | `stop`   | 暂停当前动作（模型）的执行                                 |
 | model       | `motion_stop`  | `resume` | 恢复当前动作（模型）的执行                                 |
+| model       | `finish_loop`  | —        | 请求循环动作完成当前一轮后结束                             |
+| config      | `getup`        | `stand` / `lie` / `face` | 设置准备姿态：站立起身 / 躺起起身 / 趴起起身             |
+| config      | `nav`          | `manual` / `auto` / `follow` | 设置导航模式                           |
+| config      | `speed`        | `std` / `high` | 设置速度模式                                         |
+| config      | `mode`         | `rl` / `mix` / `spec` / `mocap` / `app` | 设置控制模式               |
+| reset       | `reset_fault`  | —        | 提交故障复位意图                                           |
 
 **status 参数说明**
 
@@ -611,6 +618,51 @@ int main()
 }
 ```
 
+**5. 订阅电池信息示例**
+
+ROS2 话题 `/robot/battery/battery_info` 对应 DDS 话题 `rt/robot/battery/battery_info`，
+消息类型为 `robot_interfaces::msg::dds_::BatteryInfo_`。使用与电池发布端一致的域 ID 和网卡，
+经 DDS 桥接时确保该话题已配置桥接。订阅仅接收数据，不发送运动指令。
+
+```cpp
+#include <unistd.h>
+#include <iostream>
+#include <zv/idl/t4/BatteryInfo_.hpp>
+#include <zv/robot/channel/channel_subscriber.hpp>
+
+int main()
+{
+    using namespace zv::robot;
+    using BatteryInfo = robot_interfaces::msg::dds_::BatteryInfo_;
+    // 初始化与机器人相同的 DDS 域和网络接口。
+    ChannelFactory::Instance()->Init(0);
+    ChannelSubscriber<BatteryInfo> subscriber("rt/robot/battery/battery_info");
+    subscriber.InitChannel([](const void * message) {
+        const auto & battery = *static_cast<const BatteryInfo *>(message);
+        // 总压、电流、SOC 的原始分辨率分别为 0.1 V、0.1 A、0.1%。
+        std::cout << "SOC: " << battery.soc_() / 10.0 << " %, voltage: "
+                  << battery.total_volt_() / 10.0 << " V, current: "
+                  << battery.current_() / 10.0 << " A" << std::endl;
+    }, 5, false);
+    while (true) sleep(1);
+}
+```
+
+Python 对应提供 `BatteryInfo_` 与 `ChannelSubscriber_BatteryInfo_` 类型。
+
+| 字段 | 单位与含义 |
+|---|---|
+| `total_volt_`、`current_`、`limit_current_` | 原始值除以 10，分别为 V、A、A；电流保留正负号 |
+| `soc_`、`soh_` | 原始值除以 10，分别为剩余电量和健康度（%） |
+| `life_`、`power_`、`energy_` | 寿命（%）、功率（W）、总能量（Wh） |
+| `mos_temp_`、`board_temp_`、`heat_temp_`、`max_temp_`、`min_temp_` | 摄氏度；当前 SDK 使用 uint8 存储，负温度需按 int8 原始字节解释 |
+| `max_volt_`、`min_volt_`、`diff_volt_` | 最高/最低单体电压及压差（mV） |
+| `remain_capacity_`、`cycle_count_`、`rest_charge_time_` | 剩余容量（mAh）、循环次数、剩余充电时间（min） |
+| `bat_state_` | 0 静止、1 充电、2 放电；其他值保留原状态码 |
+| `chg_mos_`、`dis_mos_`、`chg_detect_`、`load_detect_` | 充放电 MOS、充电器/负载接入状态；0 关闭/未接入、1 开启/已接入 |
+
+其余电芯/温度编号、预充/加热/风扇 MOS、输入输出、唤醒源、限流和 PWM 等信息由消息原始字段提供。
+
 ## 数据采集接口
 
 `zv::robot::DataCollectionClient` 用于控制机器人端开始和结束数据录制。
@@ -665,6 +717,10 @@ int main()
 [examples/data_collection/data_collection.cpp](examples/data_collection/data_collection.cpp)：
 其中 `DownloadRecording()` 演示文件下载，`ReadMcapFile()` 演示逐条读取消息，
 并通过 `McapMessage::DecodeJson()` 获取业务字段预览。
+`McapReader::OpenRange()` 支持按日志时间区间（纳秒，左闭右开）及话题筛选读取；
+`McapMessage::DecodeSchemaJson()` 支持基于内嵌 ROS2 消息定义解析 CDR1，不按话题名做业务分类。
+`DownloadRecording()` 与 `StopAndDownload()` 同时下载 MCAP 和机器人端同目录的 `metadata.yaml`，
+元数据保存到本地 MCAP 同目录；每份录制应使用独立目录，两份文件都成功下载才返回成功。
 
 ## SLAM 导航接口
 
@@ -750,6 +806,54 @@ int main()
     return 0;
 }
 ```
+
+#### 配置化导览
+
+导览示例 `examples/tour/tour.cpp` 将导航、语音播放和运控动作组合为顺序执行的点位讲解流程，
+配置文件为 `examples/config/tour.json`。场景 ID、点位顺序与坐标、WAV 路径和讲解动作均可修改。
+
+| 配置 | 业务信息 |
+| --- | --- |
+| `scene_id` | 导览场景 ID，随附配置为 `2112734270341910528` |
+| `waypoints` | 按数组顺序访问的点位；`enabled=false` 时跳过该点 |
+| `coordinateX` / `coordinateY` / `coordinateA` | 地图绝对坐标 X、Y（米）及 Yaw（弧度），Z 为 0 |
+| `wav_file` | 机器人音频播放器主机上的 WAV 绝对路径，通过 `AudioClient::PlayWavFile` 同步播放 |
+| `actions` | 语音期间按数组顺序下发的动作编排；每项可使用不同模型，空数组表示只播放语音 |
+| `actions[].model` | 本步骤的 `t4_zl*` 一次性动作模型，同一模型可在多个步骤中出现 |
+| `actions[].delay_s` | 下发前等待间隔，默认 0 秒，不能为负；首项相对语音调用开始，后续项相对上一动作请求开始 |
+| `action_model` / `action_once` | 兼容旧单模型配置，不与 `actions` 同时使用；`t4_zl*` 转为一个立即下发的步骤，其他循环动作按 `action_once` 控制并等待返回行走模型 |
+| `wait_after_s` | 讲解流程结束后的额外停留秒数 |
+| `navigation_timeout_s` | 等待本次导航最终结果的超时，默认 300 秒 |
+
+可选动作包括 `t4_zl2` 交互型解释(表现逻辑性较强的思考)、`t4_zl1` 介绍讲解(无展示物)、
+`t4_zl5` 右后方介绍、`t4_zl4` 正后方介绍(先右手，后左手)、`t4_zl6` 左后方介绍。
+具体支持情况以机器人返回的模型列表为准。各点通过 `actions` 编排讲解动作，
+WAV 路径以各点的 `wav_file` 为准，不按点位名称推导，需提前将对应音频文件部署到播放器主机。
+
+导览需事先满足机器人导航的运控条件；程序可在 SLAM 空闲时加载指定场景自动定位，
+复用已有定位时要求场景一致且导航就绪。导航结果 `0` 表示接受，继续等待同一请求的最终结果；
+`1` 表示成功，此时开始讲解；`2` 表示失败，打印后端原始响应并结束。
+到达、位置、朝向及定位误差由导航后端判断，示例不再自行校验，也不根据导航就绪状态判定到达。
+WAV 成功要求 RPC 返回 `0` 且播放结果 `success=true`。`t4_zl*` 为一次性动作，语音播放期间
+通过 `SetModel` 按编排顺序及各步骤等待间隔下发，不等待状态中的模型名称匹配，
+不发送结束、暂停或切回行走模型的命令。语音结束后停止后续步骤，已触发的动作由机器人自行完成。
+动作间隔应不小于前一动作时长，并留足完整播放时间。例如先下发 `t4_zl1`，至少 14.76 秒后下发 `t4_zl2`：
+
+```json
+{
+    "actions": [
+        {"model": "t4_zl1", "delay_s": 0},
+        {"model": "t4_zl2", "delay_s": 14.76}
+    ]
+}
+```
+
+其他循环动作按 `action_once` 控制，通过 `FinishLoop` 结束当前循环并等待回到行走模型。
+导览示例通过通用 `ChannelSubscriber<Response_>` 监听 `rt/rpc/slam/response`，
+按本次导航请求 ID 等待 `zv_api` 转发的最终结果，无需额外订阅原生 `/slam/status`。
+导航失败、通信异常或等待超时则结束导览，不自动重发、恢复导航或等待人工确认。
+错误或中断退出时尝试取消自身导航、暂停自身仍在播放的循环讲解动作；一次性动作停止后续下发，
+已触发的动作自行完成。已发出的同步音频请求仍等待完成或超时，程序不自动关闭 SLAM。
 
 #### 地图管理
 
@@ -1065,7 +1169,7 @@ int main()
 
 **IMU / 导航数据订阅示例**
 
-示例路径：examples/imu_nav/subscriber.cpp
+示例路径：examples/sensor/imu_nav_subscriber.cpp
 
 ​    该示例演示了如何使用 SDK 订阅 IMU 与组合导航融合数据（NavAll_），话题为 rt/robot/imu/nav_all（对应 robot_external_bridge 的 /robot/imu/nav_all），并在回调函数中读取加速度、角速度、欧拉角、四元数、GNSS 经纬高、东北天速度、UTC 时间、融合/GNSS 状态、温度与气压等信息。
 
@@ -1148,7 +1252,7 @@ int main()
 
 **DDS 相机预览示例**
 
-示例路径：examples/camera/subscriber.cpp
+示例路径：examples/sensor/camera_subscriber.cpp
 
 `CameraSubscriber` 订阅 head 相机的压缩图像，通过 `TakeFrame()` 非阻塞获取最新帧。
 运行前确保相机驱动已发布图像，并按实际环境设置话题、网卡和域 ID；

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <exception>
+#include <filesystem>
 #include <string>
 #include <utility>
 #include <vector>
@@ -46,6 +47,41 @@ enum class TopicEditMode : uint8_t {
 
 namespace detail
 {
+
+// MCAP 与同目录 metadata.yaml 构成一份录制数据；元数据失败不得报告整包成功。
+template <typename Download>
+int32_t DownloadRecordingFiles(const RecordingInfo & recording, const std::string & local_path,
+                               Download download, DownloadProgressFn progress)
+{
+    namespace fs = std::filesystem;
+    const auto slash = recording.file.path.find_last_of('/');
+    if (slash == std::string::npos || slash + 1 == recording.file.path.size() || local_path.empty()) {
+        return RPC_ERR_CLIENT_API_DATA;
+    }
+    const fs::path metadata = fs::path(local_path).parent_path() / "metadata.yaml";
+    if (fs::path(local_path).filename() == metadata.filename()) return RPC_ERR_CLIENT_API_DATA;
+    const fs::path temporary = metadata.parent_path() / ".metadata.yaml.part";
+    std::error_code error;
+    // 清除旧元数据，避免下载失败后将上次内容显示为本次录制元数据。
+    fs::remove(metadata, error);
+    if (error) return -1;
+    fs::remove(temporary, error);
+    if (error) return -1;
+    int32_t result = download(recording.file.path, local_path, progress);
+    if (result != 0) return result;
+    try {
+        result = download(recording.file.path.substr(0, slash + 1) + "metadata.yaml", temporary.string(), nullptr);
+        if (result == 0) {
+            fs::rename(temporary, metadata, error);
+            if (error) result = -1;
+        }
+    } catch (...) {
+        fs::remove(temporary, error);
+        throw;
+    }
+    if (result != 0) fs::remove(temporary, error);
+    return result;
+}
 
 // 读取字符串数组字段：字段缺失时视为空数组，类型不符时返回 false
 inline bool ReadStringArray(const nlohmann::json & json, const char * key, std::vector<std::string> & values)
@@ -210,7 +246,10 @@ public:
 
         int32_t result = -1;
         try {
-            result = auth_client_.DownloadFile(recording.file.path, local_path, progress);
+            result = detail::DownloadRecordingFiles(recording, local_path,
+                [this](const std::string & remote, const std::string & local, DownloadProgressFn callback) {
+                    return auth_client_.DownloadFile(remote, local, callback);
+                }, progress);
         } catch (const std::exception &) {
             result = -1;
         }

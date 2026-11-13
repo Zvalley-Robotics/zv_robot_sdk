@@ -120,16 +120,17 @@ Configuration file example:
 
 ```json
 {
-  "domain_id": 0,
+  "domain_id": 10,
   "dds_uri": "file://./cyclonedds_localhost.xml"
 }
 ```
 
 Place `cyclonedds_localhost.xml` in the same directory as the JSON file.
 
-The example configuration is in `examples/config/` and includes JSON and XML files.
+The example configuration is in `examples/config/` and includes JSON and XML files. The bundled `dds.json` uses domain ID `10`.
+The XML binds to the local `lo` interface and uses unicast for communication on the same host; modify the configuration for the actual network when communicating across hosts.
 
-The examples use the `ZV_DDS_DOMAIN_ID` environment variable to select the domain ID, defaulting to domain 0 when it is unset. When using a configuration file, the domain ID comes from the file.
+When initializing with a network interface, the domain ID is selected through the `ZV_DDS_DOMAIN_ID` environment variable, defaulting to domain 0 when it is unset. When using a configuration file, the domain ID comes from the file.
 
 C++ initialization from a configuration file:
 
@@ -182,10 +183,10 @@ Publishes messages of a specified type.
 
 | Function | Write |
 |-----------|------|
-| Prototype | bool Write(const MSG& msg,int64_t wait_microsec =0) |
+| Prototype | void Write(const MSG& msg,int64_t wait_microsec =0) |
 | Description | Publishes a message of the specified type |
 | Parameters | msg: message of type MSG to publish |
-| Returns | true on success; false on failure |
+| Returns | None |
 | Notes | None |
 
 **DDS Publishing Example — Hello World**
@@ -255,7 +256,7 @@ Subscribes to messages of a specified type.
 
 | Function | GetLastDataAvailableTime |
 |-----------|------|
-| Prototype | int64_t GetLastDataAvailableTime() |
+| Prototype | int64_t GetLastDataAvailableTime() const |
 | Description | Returns the time the most recent message was received |
 | Parameters | None |
 | Returns | -1 if the channel is uninitialized; otherwise, a monotonically increasing timestamp since system boot, in microseconds |
@@ -369,6 +370,12 @@ uint8 priority
 | model | `switch_model` | Model name | Switch action model |
 | model | `motion_stop` | `stop` | Pause execution of the current action (model) |
 | model | `motion_stop` | `resume` | Resume execution of the current action (model) |
+| model | `finish_loop` | — | Request that a looping action finish its current cycle and end |
+| config | `getup` | `stand` / `lie` / `face` | Set the preparation posture: get up from standing / a lying position / a prone position |
+| config | `nav` | `manual` / `auto` / `follow` | Set the navigation mode |
+| config | `speed` | `std` / `high` | Set the speed mode |
+| config | `mode` | `rl` / `mix` / `spec` / `mocap` / `app` | Set the control mode |
+| reset | `reset_fault` | — | Submit a fault reset intent |
 
 **status Values**
 
@@ -611,6 +618,51 @@ int main()
 }
 ```
 
+**5. Battery Information Subscription Example**
+
+ROS2 topic `/robot/battery/battery_info` corresponds to DDS topic `rt/robot/battery/battery_info`,
+with message type `robot_interfaces::msg::dds_::BatteryInfo_`. Use the same domain ID and network interface as the battery publisher.
+When using a DDS bridge, ensure that the topic is configured for bridging. The subscription only receives data and does not send motion commands.
+
+```cpp
+#include <unistd.h>
+#include <iostream>
+#include <zv/idl/t4/BatteryInfo_.hpp>
+#include <zv/robot/channel/channel_subscriber.hpp>
+
+int main()
+{
+    using namespace zv::robot;
+    using BatteryInfo = robot_interfaces::msg::dds_::BatteryInfo_;
+    // Initialize the same DDS domain and network interface as the robot.
+    ChannelFactory::Instance()->Init(0);
+    ChannelSubscriber<BatteryInfo> subscriber("rt/robot/battery/battery_info");
+    subscriber.InitChannel([](const void * message) {
+        const auto & battery = *static_cast<const BatteryInfo *>(message);
+        // Raw total voltage, current, and SOC resolutions are 0.1 V, 0.1 A, and 0.1%, respectively.
+        std::cout << "SOC: " << battery.soc_() / 10.0 << " %, voltage: "
+                  << battery.total_volt_() / 10.0 << " V, current: "
+                  << battery.current_() / 10.0 << " A" << std::endl;
+    }, 5, false);
+    while (true) sleep(1);
+}
+```
+
+Python provides the corresponding `BatteryInfo_` and `ChannelSubscriber_BatteryInfo_` types.
+
+| Field | Units and Meaning |
+|---|---|
+| `total_volt_`, `current_`, `limit_current_` | Divide raw values by 10 to obtain V, A, and A, respectively; preserve the current's sign |
+| `soc_`, `soh_` | Divide raw values by 10 to obtain remaining charge and state of health (%) |
+| `life_`, `power_`, `energy_` | Lifetime (%), power (W), and total energy (Wh) |
+| `mos_temp_`, `board_temp_`, `heat_temp_`, `max_temp_`, `min_temp_` | Degrees Celsius; the current SDK stores these as uint8, so negative temperatures must be interpreted as raw int8 bytes |
+| `max_volt_`, `min_volt_`, `diff_volt_` | Highest/lowest cell voltage and voltage difference (mV) |
+| `remain_capacity_`, `cycle_count_`, `rest_charge_time_` | Remaining capacity (mAh), cycle count, and remaining charging time (min) |
+| `bat_state_` | 0: idle, 1: charging, 2: discharging; preserve other state codes as received |
+| `chg_mos_`, `dis_mos_`, `chg_detect_`, `load_detect_` | Charge/discharge MOS and charger/load connection states; 0: off/disconnected, 1: on/connected |
+
+The raw message fields provide the remaining cell/temperature indices, precharge/heating/fan MOS states, inputs and outputs, wake source, current limiting, PWM, and other information.
+
 ## Data Collection Interface
 
 `zv::robot::DataCollectionClient` starts and stops data recording on the robot.
@@ -665,6 +717,10 @@ For recording file downloads and MCAP reading and parsing, see
 [examples/data_collection/data_collection.cpp](examples/data_collection/data_collection.cpp).
 `DownloadRecording()` demonstrates downloading a file, while `ReadMcapFile()` demonstrates reading messages one by one
 and using `McapMessage::DecodeJson()` to preview application fields.
+`McapReader::OpenRange()` supports filtering by a log timestamp range (nanoseconds, start inclusive and end exclusive) and topics;
+`McapMessage::DecodeSchemaJson()` parses CDR1 using embedded ROS2 message definitions without classifying business data by topic name.
+`DownloadRecording()` and `StopAndDownload()` download both the MCAP file and `metadata.yaml` from the same directory on the robot.
+Metadata is saved in the same local directory as the MCAP file. Use a separate directory for each recording; success is returned only when both files have been downloaded successfully.
 
 ## SLAM Navigation Interfaces
 
@@ -750,6 +806,54 @@ int main()
     return 0;
 }
 ```
+
+#### Configurable Guided Tour
+
+The guided tour example `examples/tour/tour.cpp` combines navigation, audio playback, and motion control actions into a sequence of waypoint explanations.
+Its configuration file is `examples/config/tour.json`. The scene ID, waypoint order and coordinates, WAV paths, and explanation actions can all be modified.
+
+| Configuration | Business Information |
+| --- | --- |
+| `scene_id` | Tour scene ID; the bundled configuration uses `2112734270341910528` |
+| `waypoints` | Waypoints visited in array order; `enabled=false` skips a waypoint |
+| `coordinateX` / `coordinateY` / `coordinateA` | Absolute map coordinates X and Y (meters) and yaw (radians), with Z set to 0 |
+| `wav_file` | Absolute WAV path on the robot's audio-player host, played synchronously through `AudioClient::PlayWavFile` |
+| `actions` | Action sequence submitted in array order during speech playback; each step can use a different model, and an empty array means audio only |
+| `actions[].model` | The step's `t4_zl*` one-shot action model; the same model may appear in multiple steps |
+| `actions[].delay_s` | Delay before submission, defaulting to 0 seconds and required to be nonnegative; the first step is relative to the start of the audio call, and later steps are relative to the start of the previous action request |
+| `action_model` / `action_once` | Compatibility with the old single-model configuration; do not use together with `actions`. A `t4_zl*` model becomes one immediately submitted step; other looping actions follow `action_once` and wait for a return to the walking model |
+| `wait_after_s` | Additional dwell time in seconds after the explanation sequence ends |
+| `navigation_timeout_s` | Timeout for waiting for the final result of the current navigation request, defaulting to 300 seconds |
+
+Available actions include `t4_zl2` for interactive explanation (a thoughtful gesture emphasizing logical reasoning), `t4_zl1` for an introduction or explanation without a display object,
+`t4_zl5` for introducing something behind and to the right, `t4_zl4` for introducing something directly behind (right hand first, then left), and `t4_zl6` for introducing something behind and to the left.
+Actual support is determined by the model list returned by the robot. Each waypoint uses `actions` to arrange its explanation actions.
+The WAV path comes from each waypoint's `wav_file` and is not derived from the waypoint name. Deploy the corresponding audio files to the player host in advance.
+
+The robot's motion control must meet the navigation prerequisites before starting the tour. When SLAM is idle, the program can load the specified scene and initialize localization automatically.
+Reusing existing localization requires the same scene and a navigation-ready state. Navigation result `0` means accepted, so the program continues waiting for the final result of the same request;
+`1` means success and starts the explanation; `2` means failure, causing the raw backend response to be printed and the tour to end.
+The navigation backend determines arrival, position, heading, and localization error. The example does not perform its own checks or infer arrival from the navigation-ready state.
+WAV playback succeeds only when the RPC returns `0` and the playback result has `success=true`. A `t4_zl*` model is a one-shot action.
+During speech playback, the program submits actions through `SetModel` in the configured order and at the configured intervals, without waiting for the model name in the state to match.
+It does not send commands to end or pause these actions or switch back to the walking model. When speech ends, no further steps are submitted; the robot completes actions that have already been triggered.
+Action intervals should be at least as long as the preceding action, with enough time for complete playback. For example, submit `t4_zl1` first, then submit `t4_zl2` at least 14.76 seconds later:
+
+```json
+{
+    "actions": [
+        {"model": "t4_zl1", "delay_s": 0},
+        {"model": "t4_zl2", "delay_s": 14.76}
+    ]
+}
+```
+
+Other looping actions follow `action_once`, use `FinishLoop` to end the current loop, and wait for a return to the walking model.
+The tour example uses a generic `ChannelSubscriber<Response_>` to listen on `rt/rpc/slam/response`,
+matching the current navigation request ID to await the final result forwarded by `zv_api`, without an additional subscription to the native `/slam/status` topic.
+Navigation failure, communication errors, or a timeout end the tour; the program does not automatically resend requests, resume navigation, or wait for manual confirmation.
+On an error or interruption, it attempts to cancel its own navigation and pause its own looping explanation action if it is still playing. For one-shot actions, it stops submitting further steps,
+while actions already triggered complete on their own. A synchronous audio request already sent continues waiting for completion or timeout. The program does not automatically shut down SLAM.
 
 #### Map Management
 
@@ -1065,7 +1169,7 @@ int main()
 
 **IMU / Navigation Data Subscription Example**
 
-Example: examples/imu_nav/subscriber.cpp
+Example: examples/sensor/imu_nav_subscriber.cpp
 
 This example uses the SDK to subscribe to IMU and integrated navigation data (NavAll_) on rt/robot/imu/nav_all, corresponding to /robot/imu/nav_all in robot_external_bridge. The callback reads acceleration, angular velocity, Euler angles, quaternion, GNSS longitude/latitude/altitude, east/north/up velocity, UTC time, fusion/GNSS status, temperature, and pressure.
 
@@ -1148,7 +1252,7 @@ int main()
 
 **DDS Camera Preview Example**
 
-Example: examples/camera/subscriber.cpp
+Example: examples/sensor/camera_subscriber.cpp
 
 `CameraSubscriber` subscribes to compressed images from the head camera and retrieves the latest frame without blocking through `TakeFrame()`.
 Before running it, ensure that the camera driver is publishing images and set the topic, network interface, and domain ID for your environment.

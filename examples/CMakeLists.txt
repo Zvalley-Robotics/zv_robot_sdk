@@ -101,15 +101,17 @@ add_sdk_example(lowcmdSubscriber lowcmd/subscriber.cpp)
 add_sdk_example(loco highcmd/loco.cpp)
 add_sdk_example(robotIntentPublisher highcmd/intent_publisher.cpp)
 add_sdk_example(robotStateSubscriber highcmd/state_subscriber.cpp)
+add_sdk_example(batterySubscriber sensor/battery_subscriber.cpp)
 add_sdk_example(slam slam/slam.cpp)
+add_sdk_example(tour tour/tour.cpp)
 add_sdk_example(dataCollection data_collection/data_collection.cpp)
 add_sdk_example(streamer streamer/streamer.cpp)
-add_sdk_example(cameraPreview camera/camera_preview.cpp)
-add_sdk_example(cameraSubscriber camera/subscriber.cpp)
+add_sdk_example(cameraPreview sensor/camera_preview.cpp)
+add_sdk_example(cameraSubscriber sensor/camera_subscriber.cpp)
 add_sdk_example(auth auth/auth.cpp)
-add_sdk_example(audio audio/audio.cpp)
+add_sdk_example(audio sensor/audio.cpp)
 add_sdk_example(teleop teleop/teleop.cpp)
-add_sdk_example(imuNavSubscriber imu_nav/subscriber.cpp)
+add_sdk_example(imuNavSubscriber sensor/imu_nav_subscriber.cpp)
 add_sdk_example(t3StateMonitor t3/state_monitor.cpp)
 add_sdk_example(t3ActionDemo t3/action_demo.cpp)
 add_sdk_example(diagnosticsSubscriber ops/subscriber.cpp)
@@ -122,7 +124,9 @@ set(ZV_ROBOT_SDK_EXAMPLE_TARGETS
     loco
     robotIntentPublisher
     robotStateSubscriber
+    batterySubscriber
     slam
+    tour
     dataCollection
     streamer
     cameraPreview

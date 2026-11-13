@@ -60,18 +60,21 @@ inline DdsArguments ParseDdsArguments(int argc, const char * const argv[],
     return options;
 }
 
-// 从可执行文件所在目录向上查找，兼容 build/、bin/<arch>/ 和安装后的示例目录。
+// 从可执行文件所在目录向上查找，兼容源码构建、bin/<arch>/ 和安装后的示例目录。
 inline std::string DdsConfigPath()
 {
     auto directory = std::filesystem::read_symlink("/proc/self/exe").parent_path();
     while (!directory.empty()) {
         const auto path = directory / "config/dds.json";
         if (std::filesystem::is_regular_file(path)) return path.string();
+        // 顶层构建输出在 build/examples/，配置仍保留在源码树的 examples/config/。
+        const auto source_path = directory / "examples/config/dds.json";
+        if (std::filesystem::is_regular_file(source_path)) return source_path.string();
         const auto parent = directory.parent_path();
         if (parent == directory) break;
         directory = parent;
     }
-    throw std::runtime_error("DDS config file not found: config/dds.json beside examples");
+    throw std::runtime_error("DDS config file not found: config/dds.json or examples/config/dds.json beside examples");
 }
 
 inline void InitDds(const std::string & network_interface, bool use_config)

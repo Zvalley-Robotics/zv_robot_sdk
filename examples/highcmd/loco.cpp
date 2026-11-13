@@ -50,7 +50,7 @@ void printHelp()
   --move=<vx vy vyaw>              连续移动 (速度m/s)
   --model=<model>                  切换动作模型（由 zv_apid 校验）
   --reset_fault                    单次提交故障复位意图（实际结果查看机器人状态）
-  --config=<command action>        单次切换配置：getup 姿态、nav manual/auto/follow、speed std/high、mode rl/mix/app
+  --config=<command action>        单次切换配置：getup 姿态、nav manual/auto/follow、speed std/high、mode rl/mix/spec/mocap/app
   --head=<yaw pitch>               单次下发头部角度（度，-180..180）
   --relative                       与 --head 配合使用，表示相对角度；默认绝对角度
 

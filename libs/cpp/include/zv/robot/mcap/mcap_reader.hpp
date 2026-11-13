@@ -30,6 +30,9 @@ struct McapMessage
     // Does not change the raw payload; unsupported/invalid data is reported
     // in the JSON. Large arrays are summarized for display.
     std::string DecodeJson() const;
+    // Generic schema-based ROS2 CDR1 preview, including custom topic names.
+    // Same complexity bounds as DecodeJson; no topic/business classification.
+    std::string DecodeSchemaJson() const;
 };
 
 // Local sequential reader; no DDS initialization or robot connection
@@ -46,6 +49,10 @@ public:
 
     // Closes any previous file. False means failure; see LastError().
     bool Open(const std::string & path);
+    // Local playback window: start inclusive, end exclusive (log timestamps).
+    // Empty topics selects all channels. Does not initialize DDS.
+    bool OpenRange(const std::string & path, uint64_t start_time, uint64_t end_time,
+                   const std::vector<std::string> & topics = {});
     // Resets output on EOF/error. Errors remain sticky until
     // Open()/Close().
     McapReadResult ReadNext(McapMessage & output);

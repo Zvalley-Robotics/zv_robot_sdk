@@ -28,7 +28,7 @@ def parse_args():
     commands.add_argument("--start", action="store_true", help="start recording")
     commands.add_argument(
         "--stop", nargs="?", const="", metavar="LOCAL_DIR",
-        help="stop recording and download the MCAP file (default: current directory)",
+        help="stop recording and download MCAP + metadata.yaml into a recording subdirectory (default root: current directory)",
     )
     commands.add_argument(
         "--get_topics", action="store_true", help="print configured recording topics"
@@ -153,7 +153,13 @@ def main():
     if result != zv.RPC_OK:
         return report_error(client, "stop recording", result)
 
-    local_dir = pathlib.Path(args.stop) if args.stop else pathlib.Path.cwd()
+    filename = pathlib.Path(recording.file.name)
+    if (filename.name != recording.file.name or not filename.stem or filename.stem.startswith('.')
+            or '\\' in recording.file.name):
+        print("Invalid recording file name", file=sys.stderr)
+        return 1
+    download_root = pathlib.Path(args.stop) if args.stop else pathlib.Path.cwd()
+    local_dir = download_root / filename.stem
     try:
         local_dir.mkdir(parents=True, exist_ok=True)
     except OSError as error:
@@ -173,10 +179,12 @@ def main():
     result = client.DownloadRecording(recording, str(local_path), progress)
     if result != zv.RPC_OK:
         print()
-        print(f"Failed to download recording (code={result})", file=sys.stderr)
+        print(f"Failed to download recording or metadata.yaml (code={result}). "
+              f"Local recording directory: {local_dir}", file=sys.stderr)
         return 1
+    print(f"\nDownloaded metadata.yaml to {local_dir / 'metadata.yaml'}")
     print(
-        f"\rDownloaded {recording.file.name} to {local_path} "
+        f"\rDownloaded {filename.stem}/{filename.name} to {local_path} "
         f"({recording.file.size} bytes, {recording.message_count} messages)"
     )
     if args.read_after_download:

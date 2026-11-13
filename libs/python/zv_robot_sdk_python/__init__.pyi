@@ -13,7 +13,7 @@ from . import FollowControl_Constants
 from . import SpeakStatus_Constants
 from . import RobotState_Constants
 from . import DriverStatus_Constants
-__all__: list[str] = ['AUDIO_CAPTURE_DIAGNOSTICS_TOPIC', 'AUDIO_INFERENCE_DIAGNOSTICS_TOPIC', 'AUDIO_KWS_TRIGGER_TOPIC', 'AUDIO_RAW_TOPIC', 'AUDIO_SDK_CAPTURE_DIAGNOSTICS_TOPIC', 'AUDIO_SDK_INFERENCE_DIAGNOSTICS_TOPIC', 'AUDIO_SDK_KWS_TRIGGER_TOPIC', 'AUDIO_SDK_RAW_TOPIC', 'AUDIO_SDK_SPEECH_RESULT_TOPIC', 'AUDIO_SDK_SPEECH_STATUS_TOPIC', 'AUDIO_SPEECH_RESULT_TOPIC', 'AUDIO_SPEECH_STATUS_TOPIC', 'ArmAutoMsg_', 'ArmForce_', 'ArmState_', 'AttitudeAllData_', 'AttitudeMinAhrs_', 'AttitudeMinVru_', 'AudioArrayDimension', 'AudioClient', 'AudioControlResult', 'AudioKwsTrigger', 'AudioRawFrame', 'AudioRequest_', 'AudioRequest_Constants', 'AudioSpeechResult', 'AudioSpeechStatus', 'AudioSubscriber', 'AudioTopic', 'AudioTopicStats', 'AudioVoiceDiagnostics', 'AuthClient', 'BatteryInfo_', 'CameraFrame', 'CameraSubscriber', 'ChannelFactory', 'ChannelPublisher_ArmAutoMsg_', 'ChannelPublisher_ArmForce_', 'ChannelPublisher_ArmState_', 'ChannelPublisher_AudioRequest_', 'ChannelPublisher_FollowControl_', 'ChannelPublisher_Gripper_', 'ChannelPublisher_HeadAutoMsg_', 'ChannelPublisher_HeadControl_', 'ChannelPublisher_JointCommands_', 'ChannelPublisher_JointStatus_', 'ChannelPublisher_MotorStates_', 'ChannelPublisher_RobotIntent_', 'ChannelPublisher_String_', 'ChannelPublisher_Twist_', 'ChannelPublisher_WaistAutoMsg_', 'ChannelPublisher_WaistEnd_', 'ChannelSubscriber_HeadControl_', 'ChannelSubscriber_JointStates_', 'ChannelSubscriber_NavAll_', 'ChannelSubscriber_OccupancyGrid_', 'ChannelSubscriber_PoseStamped_', 'ChannelSubscriber_RobotIntent_', 'ChannelSubscriber_RobotState_', 'ChannelSubscriber_String_', 'ChannelSubscriber_Twist_', 'Client', 'ClientBase', 'CompressedImage_', 'DIAGNOSTICS_TOPIC', 'DataCollectionClient', 'DiagnosticArray_', 'DiagnosticStatus_', 'DiagnosticsSubscriber', 'DriverStatus_', 'DriverStatus_Constants', 'EulerAngle_', 'EulerOnly_', 'FileAccessInfo', 'FileInfo', 'FollowControl_', 'FollowControl_Constants', 'GnssPos_', 'Gripper2Finger_', 'Gripper_', 'Hand_', 'HeadAutoMsg_', 'HeadControl_', 'Header_', 'Image_', 'ImuDataTenAxis_', 'ImuData_', 'JointCommand_', 'JointCommands_', 'JointCommands_Constants', 'JointState_', 'JointState_Constants', 'JointStates_', 'JointStatus_', 'KeyValue_', 'LOCO_API_VERSION', 'LOCO_SERVICE_NAME', 'LatestSubscriber_ArmAutoMsg_', 'LatestSubscriber_ArmForce_', 'LatestSubscriber_ArmState_', 'LatestSubscriber_Gripper_', 'LatestSubscriber_HeadAutoMsg_', 'LatestSubscriber_JointStatus_', 'LatestSubscriber_MotorStates_', 'LatestSubscriber_Twist_', 'LatestSubscriber_WaistAutoMsg_', 'LatestSubscriber_WaistEnd_', 'LocoClient', 'LocoHeadPose', 'LocoState', 'LocoVersion', 'MapMetaData_', 'McapMessage', 'McapReader', 'MediaClient', 'MotorState_', 'MotorStates_', 'NavAll_', 'NavEuler', 'NavMinUtc_', 'NavMin_', 'NavOrientation', 'NavPose', 'NavPosition', 'NavStatus_', 'OccupancyGrid_', 'PingResult', 'Point_', 'PosOnly_', 'PoseStamped_', 'Pose_', 'Pressure_', 'Quat_', 'Quaternion_', 'ROBOT_API_ID_LOCO_HEAD_CONTROL', 'ROBOT_API_ID_LOCO_HEAD_POSE', 'ROBOT_API_ID_LOCO_MOVE', 'ROBOT_API_ID_LOCO_ROBOT_STATE', 'ROBOT_API_ID_LOCO_SET_CONFIG', 'ROBOT_API_ID_LOCO_SET_MODEL', 'ROBOT_API_ID_LOCO_SET_STATE', 'ROBOT_API_ID_LOCO_SUPPORTED_MODELS', 'ROBOT_API_ID_LOCO_VERSION', 'ROBOT_API_ID_TELEOP_GET_DEVICE_LIST', 'ROBOT_API_ID_TELEOP_START', 'ROBOT_API_ID_TELEOP_STOP', 'ROBOT_API_ID_TELEOP_SWITCH_DEVICES', 'ROBOT_CLIENT_TIMEOUT', 'RPC_ERR_CLIENT_API_DATA', 'RPC_ERR_SERVER_API_PARAMETER', 'RPC_ERR_SERVER_INTERNAL', 'RPC_OK', 'RecordingInfo', 'RlManagerStatus_', 'RlModelInfo_', 'RobotIntent_', 'RobotLord_', 'RobotState_', 'RobotState_Constants', 'RpcErrorDescription', 'SLAM_COLLISION_RISK_TOPIC', 'SLAM_MAP_TOPIC', 'SLAM_POSE_TOPIC', 'SampleTimestamp_', 'SensorTemp_', 'SlamClient', 'SlamMap', 'SlamSubscriber', 'SpeakStatus_', 'SpeakStatus_Constants', 'StreamControlResult', 'String_', 'Sucker_', 'SynthesizeSpeechResult', 'SystemStatus_', 'TELEOP_API_VERSION', 'TELEOP_GET_DEVICE_LIST_SERVICE', 'TELEOP_SERVICE_NAME', 'TELEOP_START_SERVICE', 'TELEOP_STOP_SERVICE', 'TELEOP_SWITCH_DEVICES_SERVICE', 'TeleopClient', 'TeleopDeviceListRequest', 'TeleopDeviceListResult', 'TeleopDeviceStatus', 'TeleopDeviceStatusList', 'TeleopDeviceSwitch', 'TeleopRequest', 'TeleopResult', 'TeleopSwitchDevicesRequest', 'TeleopSwitchDevicesResult', 'ThreeAxis_', 'Tid_', 'Time_', 'TopicEditMode', 'TopicList', 'TopicMatchInfo', 'TopicUpdateResult', 'Twist_', 'Utc_', 'Vector3_', 'Vel_', 'VersionInfo_', 'WaistAutoMsg_', 'WaistEnd_', 'WavPlaybackResult', 'ZVHeader_']
+__all__: list[str] = ['AUDIO_CAPTURE_DIAGNOSTICS_TOPIC', 'AUDIO_INFERENCE_DIAGNOSTICS_TOPIC', 'AUDIO_KWS_TRIGGER_TOPIC', 'AUDIO_RAW_TOPIC', 'AUDIO_SDK_CAPTURE_DIAGNOSTICS_TOPIC', 'AUDIO_SDK_INFERENCE_DIAGNOSTICS_TOPIC', 'AUDIO_SDK_KWS_TRIGGER_TOPIC', 'AUDIO_SDK_RAW_TOPIC', 'AUDIO_SDK_SPEECH_RESULT_TOPIC', 'AUDIO_SDK_SPEECH_STATUS_TOPIC', 'AUDIO_SPEECH_RESULT_TOPIC', 'AUDIO_SPEECH_STATUS_TOPIC', 'ArmAutoMsg_', 'ArmForce_', 'ArmState_', 'AttitudeAllData_', 'AttitudeMinAhrs_', 'AttitudeMinVru_', 'AudioArrayDimension', 'AudioClient', 'AudioControlResult', 'AudioKwsTrigger', 'AudioRawFrame', 'AudioRequest_', 'AudioRequest_Constants', 'AudioSpeechResult', 'AudioSpeechStatus', 'AudioSubscriber', 'AudioTopic', 'AudioTopicStats', 'AudioVoiceDiagnostics', 'AuthClient', 'BatteryInfo_', 'CameraFrame', 'CameraSubscriber', 'ChannelFactory', 'ChannelPublisher_ArmAutoMsg_', 'ChannelPublisher_ArmForce_', 'ChannelPublisher_ArmState_', 'ChannelPublisher_AudioRequest_', 'ChannelPublisher_FollowControl_', 'ChannelPublisher_Gripper_', 'ChannelPublisher_HeadAutoMsg_', 'ChannelPublisher_HeadControl_', 'ChannelPublisher_JointCommands_', 'ChannelPublisher_JointStatus_', 'ChannelPublisher_MotorStates_', 'ChannelPublisher_RobotIntent_', 'ChannelPublisher_String_', 'ChannelPublisher_Twist_', 'ChannelPublisher_WaistAutoMsg_', 'ChannelPublisher_WaistEnd_', 'ChannelSubscriber_BatteryInfo_', 'ChannelSubscriber_HeadControl_', 'ChannelSubscriber_JointStates_', 'ChannelSubscriber_NavAll_', 'ChannelSubscriber_OccupancyGrid_', 'ChannelSubscriber_PoseStamped_', 'ChannelSubscriber_RobotIntent_', 'ChannelSubscriber_RobotState_', 'ChannelSubscriber_String_', 'ChannelSubscriber_Twist_', 'Client', 'ClientBase', 'CompressedImage_', 'DIAGNOSTICS_TOPIC', 'DataCollectionClient', 'DiagnosticArray_', 'DiagnosticStatus_', 'DiagnosticsSubscriber', 'DriverStatus_', 'DriverStatus_Constants', 'EulerAngle_', 'EulerOnly_', 'FileAccessInfo', 'FileInfo', 'FollowControl_', 'FollowControl_Constants', 'GnssPos_', 'Gripper2Finger_', 'Gripper_', 'Hand_', 'HeadAutoMsg_', 'HeadControl_', 'Header_', 'Image_', 'ImuDataTenAxis_', 'ImuData_', 'JointCommand_', 'JointCommands_', 'JointCommands_Constants', 'JointState_', 'JointState_Constants', 'JointStates_', 'JointStatus_', 'KeyValue_', 'LOCO_API_VERSION', 'LOCO_SERVICE_NAME', 'LatestSubscriber_ArmAutoMsg_', 'LatestSubscriber_ArmForce_', 'LatestSubscriber_ArmState_', 'LatestSubscriber_Gripper_', 'LatestSubscriber_HeadAutoMsg_', 'LatestSubscriber_JointStatus_', 'LatestSubscriber_MotorStates_', 'LatestSubscriber_Twist_', 'LatestSubscriber_WaistAutoMsg_', 'LatestSubscriber_WaistEnd_', 'LocoClient', 'LocoHeadPose', 'LocoState', 'LocoVersion', 'MapMetaData_', 'McapMessage', 'McapReader', 'MediaClient', 'MotorState_', 'MotorStates_', 'NavAll_', 'NavEuler', 'NavMinUtc_', 'NavMin_', 'NavOrientation', 'NavPose', 'NavPosition', 'NavStatus_', 'OccupancyGrid_', 'PingResult', 'Point_', 'PosOnly_', 'PoseStamped_', 'Pose_', 'Pressure_', 'Quat_', 'Quaternion_', 'ROBOT_API_ID_LOCO_HEAD_CONTROL', 'ROBOT_API_ID_LOCO_HEAD_POSE', 'ROBOT_API_ID_LOCO_MOVE', 'ROBOT_API_ID_LOCO_ROBOT_STATE', 'ROBOT_API_ID_LOCO_SET_CONFIG', 'ROBOT_API_ID_LOCO_SET_MODEL', 'ROBOT_API_ID_LOCO_SET_STATE', 'ROBOT_API_ID_LOCO_SUPPORTED_MODELS', 'ROBOT_API_ID_LOCO_VERSION', 'ROBOT_API_ID_TELEOP_GET_DEVICE_LIST', 'ROBOT_API_ID_TELEOP_START', 'ROBOT_API_ID_TELEOP_STOP', 'ROBOT_API_ID_TELEOP_SWITCH_DEVICES', 'ROBOT_CLIENT_TIMEOUT', 'RPC_ERR_CLIENT_API_DATA', 'RPC_ERR_SERVER_API_PARAMETER', 'RPC_ERR_SERVER_INTERNAL', 'RPC_OK', 'RecordingInfo', 'RlManagerStatus_', 'RlModelInfo_', 'RobotIntent_', 'RobotLord_', 'RobotState_', 'RobotState_Constants', 'RpcErrorDescription', 'SLAM_COLLISION_RISK_TOPIC', 'SLAM_MAP_TOPIC', 'SLAM_POSE_TOPIC', 'SampleTimestamp_', 'SensorTemp_', 'SlamClient', 'SlamMap', 'SlamSubscriber', 'SpeakStatus_', 'SpeakStatus_Constants', 'StreamControlResult', 'String_', 'Sucker_', 'SynthesizeSpeechResult', 'SystemStatus_', 'TELEOP_API_VERSION', 'TELEOP_GET_DEVICE_LIST_SERVICE', 'TELEOP_SERVICE_NAME', 'TELEOP_START_SERVICE', 'TELEOP_STOP_SERVICE', 'TELEOP_SWITCH_DEVICES_SERVICE', 'TeleopClient', 'TeleopDeviceListRequest', 'TeleopDeviceListResult', 'TeleopDeviceStatus', 'TeleopDeviceStatusList', 'TeleopDeviceSwitch', 'TeleopRequest', 'TeleopResult', 'TeleopSwitchDevicesRequest', 'TeleopSwitchDevicesResult', 'ThreeAxis_', 'Tid_', 'Time_', 'TopicEditMode', 'TopicList', 'TopicMatchInfo', 'TopicUpdateResult', 'Twist_', 'Utc_', 'Vector3_', 'Vel_', 'VersionInfo_', 'WaistAutoMsg_', 'WaistEnd_', 'WavPlaybackResult', 'ZVHeader_']
 class String_:
     __hash__: typing.ClassVar[None] = None
     data_: str
@@ -1976,6 +1976,25 @@ class ChannelSubscriber_RobotState_:
     @typing.overload
     def __init__(self, channel_name: str, handler: collections.abc.Callable, queue_len: typing.SupportsInt = 0, reliable: bool = True) -> None:
         ...
+class ChannelSubscriber_BatteryInfo_:
+    def CloseChannel(self) -> None:
+        ...
+    def GetChannelName(self) -> str:
+        ...
+    def GetMatchedPublisherCount(self) -> int:
+        ...
+    @typing.overload
+    def InitChannel(self, handler: collections.abc.Callable, queue_len: typing.SupportsInt = 0, reliable: bool = True) -> None:
+        ...
+    @typing.overload
+    def InitChannel(self) -> None:
+        ...
+    @typing.overload
+    def __init__(self, channel_name: str) -> None:
+        ...
+    @typing.overload
+    def __init__(self, channel_name: str, handler: collections.abc.Callable, queue_len: typing.SupportsInt = 0, reliable: bool = True) -> None:
+        ...
 class ChannelSubscriber_RobotIntent_:
     def CloseChannel(self) -> None:
         ...
@@ -2920,6 +2939,8 @@ class CameraSubscriber:
 class McapMessage:
     def DecodeJson(self) -> str:
         ...
+    def DecodeSchemaJson(self) -> str:
+        ...
     @property
     def data(self) -> bytes:
         ...
@@ -2961,6 +2982,8 @@ class McapReader:
     def LastError(self) -> str:
         ...
     def Open(self, path: str) -> bool:
+        ...
+    def OpenRange(self, path: str, start_time: typing.SupportsInt, end_time: typing.SupportsInt, topics: collections.abc.Sequence[str] = []) -> bool:
         ...
     def ReadNext(self) -> typing.Any:
         """
@@ -3997,4 +4020,4 @@ TELEOP_SERVICE_NAME: str = 'teleop'
 TELEOP_START_SERVICE: str = '/teleop/start'
 TELEOP_STOP_SERVICE: str = '/teleop/stop'
 TELEOP_SWITCH_DEVICES_SERVICE: str = '/teleop/data_loader/switch_devices'
-__version__: str = '1.0.18'
+__version__: str = '1.0.19'

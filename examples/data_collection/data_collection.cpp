@@ -32,9 +32,9 @@ void printUsage()
               << "Commands:\n"
               << "  --start                   Start recording on the robot\n"
               << "  --stop[=<local_dir>]      Stop recording and download the "
-                 "MCAP file\n"
+                 "MCAP and metadata.yaml\n"
               << "                            to local_dir (default: current "
-                 "directory)\n"
+                 "directory), in a recording subdirectory\n"
               << "  --get_topics              Print the configured recording "
                  "topics\n"
               << "  --set_topics=<t1,t2,...>  Modify the recording topic list; "
@@ -288,7 +288,14 @@ int main(int argc, const char * const argv[])
         return 1;
     }
 
-    const fs::path local_dir = arguments.at("stop").empty() ? fs::current_path() : fs::path(arguments.at("stop"));
+    const fs::path filename(recording.file.name);
+    if (filename.has_parent_path() || filename.stem().empty() || filename.stem().string().front() == '.' ||
+        recording.file.name.find('\\') != std::string::npos) {
+        std::cerr << "Invalid recording file name" << std::endl;
+        return 1;
+    }
+    const fs::path download_root = arguments.at("stop").empty() ? fs::current_path() : fs::path(arguments.at("stop"));
+    const fs::path local_dir = download_root / filename.stem();
     std::error_code error;
     fs::create_directories(local_dir, error);
     if (error) {
@@ -309,11 +316,13 @@ int main(int argc, const char * const argv[])
     result = client.DownloadRecording(recording, local_path.string(), progress);
     if (result != 0) {
         std::cout << std::endl;
-        std::cerr << "Failed to download recording (code=" << result << ")" << std::endl;
+        std::cerr << "Failed to download recording or metadata.yaml (code=" << result
+                  << "). Local recording directory: " << local_dir.string() << std::endl;
         return 1;
     }
 
-    std::cout << "\rDownloaded " << recording.file.name << " to " << local_path.string() << " (" << recording.file.size
+    std::cout << "\nDownloaded metadata.yaml to " << (local_dir / "metadata.yaml").string() << std::endl;
+    std::cout << "\rDownloaded " << (filename.stem() / filename).generic_string() << " to " << local_path.string() << " (" << recording.file.size
               << " bytes, " << recording.message_count << " messages)" << std::endl;
     if (read_after_download) {
         return ReadMcapFile(local_path.string(), std::cout, std::cerr);
